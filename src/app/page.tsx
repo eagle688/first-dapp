@@ -1,6 +1,6 @@
 // 您的页面组件 (page.tsx)
 "use client";
-import { useConnect, useAccount, useDisconnect } from "wagmi";
+import { useConnect, useAccount, useDisconnect, useBalance } from "wagmi";
 import { metaMask } from "wagmi/connectors";
 
 export default function HomePage() {
@@ -11,6 +11,14 @@ export default function HomePage() {
   const connectMetaMask = () => {
     connect({ connector: metaMask() });
   };
+
+  // 新增：使用useBalance钩子
+  const { data: balanceData } = useBalance({ address });
+
+  const { data: usdcBalanceData } = useBalance({
+    address,
+    token: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // Sepolia USDC
+  });
 
   // 格式化地址，使其更易读
   const formattedAddress = address
@@ -46,6 +54,17 @@ export default function HomePage() {
               <p className="text-gray-300 mb-1">您的钱包地址</p>
               <p className="font-mono text-lg bg-black/20 p-3 rounded-lg break-all">
                 {formattedAddress}
+              </p>
+              {/* 新增：显示余额 */}
+              <p>
+                余额: {balanceData?.formatted} {balanceData?.symbol}
+              </p>
+
+              <p className="text-gray-300 mb-1">USDC 余额</p>
+              <p className="font-mono text-lg bg-black/20 p-3 rounded-lg">
+                {usdcBalanceData
+                  ? `${usdcBalanceData.formatted} ${usdcBalanceData.symbol}`
+                  : "Loading..."}
               </p>
             </div>
 
