@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useAccount, useDisconnect } from "wagmi";
-import WalletConnect from "../components/common/WalletConnect";
-import WalletInfo from "../components/home/WalletInfo";
+import WalletConnect from "../../components/domains/wallet/WalletConnect";
+import WalletInfo from "./components/WalletInfo/WalletInfo";
 
 export default function HomePage() {
   const { isConnected } = useAccount();

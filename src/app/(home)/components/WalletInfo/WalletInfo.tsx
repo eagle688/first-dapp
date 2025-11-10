@@ -1,7 +1,7 @@
 "use client";
 import { useDisconnect, useBalance, useAccount } from "wagmi";
-import TransferSection from "./TransferSection";
-import GradientButton from "../ui/GradientButton";
+import TransferSection from "../TransferSection/TransferSection";
+import GradientButton from "../../../../components/ui/GradientButton";
 
 interface WalletInfoProps {
   onDisconnect: () => void;

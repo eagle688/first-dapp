@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import GradientButton from "../ui/GradientButton";
+import GradientButton from "../../../../components/ui/GradientButton";
 
 interface TransferSectionProps {
   address: string;

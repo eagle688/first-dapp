@@ -1,7 +1,7 @@
 "use client";
 import { useConnect, useDisconnect } from "wagmi";
 import { metaMask, injected } from "wagmi/connectors";
-import GradientButton from "../ui/GradientButton";
+import GradientButton from "../../ui/GradientButton";
 
 interface WalletConnectProps {
   onConnectSuccess: () => void;
@@ -62,7 +62,11 @@ export default function WalletConnect({
         </GradientButton>
 
         <div className="text-xs text-gray-400 bg-black/20 p-3 rounded-lg">
-          💡 如果无法连接，请刷新页面后重试
+          💡 如果无法连接，请：
+          <br />
+          1. 在OKX钱包中手动断开现有连接
+          <br />
+          2. 刷新页面后重试
         </div>
       </div>
       <p className="text-sm text-gray-400 mt-4">请确保已安装相应钱包</p>
