@@ -7,7 +7,7 @@ interface TransferSectionProps {
   address: string;
 }
 
-export default function TransferSection({ address }: TransferSectionProps) {
+export default function TransferSection({}: TransferSectionProps) {
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
   const { writeContract, data: hash } = useWriteContract();
