@@ -70,6 +70,25 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
         </div>
       )}
 
+      {/* 网络切换提醒 */}
+
+      {/* <div>
+        <p>身份地址: {address} （全网通用）</p>
+        <p>当前网络: {chain?.name} （决定余额显示）</p>
+        <p>网络ID: {chain?.id}</p>
+
+        {chain?.id === 1 && (
+          <div className="bg-green-100 text-green-800 p-2 rounded">
+            当前在主网，操作真实资产！
+          </div>
+        )}
+        {chain?.id === 11155111 && (
+          <div className="bg-blue-100 text-blue-800 p-2 rounded">
+            当前在Sepolia测试网，放心测试！
+          </div>
+        )}
+      </div> */}
+
       <div className="mb-6">
         <div className="inline-flex items-center bg-green-500/20 text-green-400 py-1 px-3 rounded-full text-sm mb-4">
           <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
