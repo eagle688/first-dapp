@@ -1,26 +1,75 @@
 "use client";
-import { useDisconnect, useBalance, useAccount } from "wagmi";
+
+import { useSwitchChain, useBalance, useAccount } from "wagmi";
 import TransferSection from "../TransferSection/TransferSection";
 import GradientButton from "../../../../components/ui/GradientButton";
+import { getUsdcAddress } from "@/constants/tokens";
 
 interface WalletInfoProps {
   onDisconnect: () => void;
 }
 
 export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
-  const { address, chain } = useAccount();
-  const { data: balanceData } = useBalance({ address });
-  const { data: usdcBalanceData } = useBalance({
+  const { address, chain, isConnected } = useAccount();
+  const { switchChain } = useSwitchChain(); // 新增这行
+
+  const { data: balanceData, isLoading: balanceLoading } = useBalance({
     address,
-    token: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+  });
+
+  const usdcAddress = getUsdcAddress(chain?.id);
+
+  const { data: usdcBalanceData, isLoading: usdcLoading } = useBalance({
+    address,
+    token: usdcAddress,
   });
 
   const formattedAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
     : "";
 
+  const handleSwitchChain = async (chainId: number) => {
+    try {
+      await switchChain({ chainId });
+      console.log(`正在切换到链 ${chainId}`);
+    } catch (err) {
+      console.error("切换网络失败:", err);
+      alert(`切换失败: ${err instanceof Error ? err.message : "未知错误"}`);
+    }
+  };
+
+  // 检查是否正在切换网络或加载
+  const isSwitchingNetwork = isConnected && !chain;
+  const isLoading = balanceLoading || usdcLoading;
+
   return (
     <div className="text-center">
+      {/* 网络切换器放在这里 */}
+      <div className="mb-4 p-3 bg-white/5 rounded-lg">
+        <p className="text-sm text-gray-300 mb-2">切换网络</p>
+        <div className="flex gap-2 justify-center">
+          <button
+            onClick={() => handleSwitchChain(11155111)}
+            className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30"
+          >
+            🧪 Sepolia
+          </button>
+          <button
+            onClick={() => handleSwitchChain(1)}
+            className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded text-sm hover:bg-purple-500/30"
+          >
+            🟣 Ethereum
+          </button>
+        </div>
+      </div>
+
+      {/* 网络切换状态提示 */}
+      {isSwitchingNetwork && (
+        <div className="mb-4 p-3 bg-yellow-500/20 text-yellow-400 rounded-lg">
+          🔄 正在切换网络...
+        </div>
+      )}
+
       <div className="mb-6">
         <div className="inline-flex items-center bg-green-500/20 text-green-400 py-1 px-3 rounded-full text-sm mb-4">
           <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
@@ -49,7 +98,7 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
         </div>
       </div>
 
-      <TransferSection address={address!} />
+      <TransferSection address={address} chain={chain} />
 
       <GradientButton
         onClick={onDisconnect}

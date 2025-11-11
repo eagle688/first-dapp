@@ -2,12 +2,21 @@
 import { useState } from "react";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import GradientButton from "../../../../components/ui/GradientButton";
+import { USDC } from "@/constants/tokens";
 
 interface TransferSectionProps {
-  address: string;
+  address: `0x${string}` | undefined;
+  chain:
+    | {
+        id: number;
+      }
+    | undefined;
 }
 
-export default function TransferSection({}: TransferSectionProps) {
+export default function TransferSection({
+  address,
+  chain,
+}: TransferSectionProps) {
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
   const { writeContract, data: hash } = useWriteContract();
@@ -24,7 +33,7 @@ export default function TransferSection({}: TransferSectionProps) {
     const amountInWei = BigInt(Number(sendAmount) * 1e6);
 
     writeContract({
-      address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      address: USDC[chain?.id],
       abi: [
         {
           name: "transfer",

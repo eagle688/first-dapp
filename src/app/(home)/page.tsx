@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccount, useDisconnect } from "wagmi";
 import WalletConnect from "../../components/domains/wallet/WalletConnect";
 import WalletInfo from "./components/WalletInfo/WalletInfo";
@@ -8,8 +8,16 @@ export default function HomePage() {
   const { isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const [manualConnected, setManualConnected] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  const isReallyConnected = isConnected || manualConnected;
+  useEffect(() => {
+    // 使用setTimeout将setState变为异步
+    setTimeout(() => {
+      setIsHydrated(true);
+    }, 0);
+  }, []);
+
+  const isReallyConnected = isHydrated && (isConnected || manualConnected);
 
   const handleConnectSuccess = () => {
     setManualConnected(true);
@@ -19,6 +27,16 @@ export default function HomePage() {
     disconnect();
     setManualConnected(false);
   };
+
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-purple-900 flex items-center justify-center">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 w-full max-w-md border border-white/20">
+          <div className="text-center text-white">加载中...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-purple-900 flex flex-col items-center justify-center p-8 text-white">
@@ -31,10 +49,6 @@ export default function HomePage() {
         ) : (
           <WalletInfo onDisconnect={handleDisconnect} />
         )}
-      </div>
-
-      <div className="mt-8 text-center text-gray-400 text-sm">
-        <p>基于 Next.js + Wagmi 构建</p>
       </div>
     </div>
   );
