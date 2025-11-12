@@ -1,7 +1,7 @@
 "use client";
 
 import { useSwitchChain, useBalance, useAccount } from "wagmi";
-import TransferSection from "../TransferSection/TransferSection";
+import { USDCTransferSection, EthTransferSection } from "../TransferSection";
 import GradientButton from "../../../../components/ui/GradientButton";
 import { getUsdcAddress } from "@/constants/tokens";
 
@@ -106,7 +106,7 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
               ? `${balanceData.formatted} ${balanceData.symbol}`
               : "加载中..."}
           </p>
-          {chain?.id !== 11155111 && ( // Sepolia chain ID
+          {chain?.id === 11155111 && ( // Sepolia chain ID
             <p>
               USDC 余额:{" "}
               {usdcBalanceData
@@ -117,7 +117,9 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
         </div>
       </div>
 
-      <TransferSection address={address} chain={chain} />
+      <EthTransferSection address={address} chain={chain} />
+
+      <USDCTransferSection address={address} chain={chain} />
 
       <GradientButton
         onClick={onDisconnect}
