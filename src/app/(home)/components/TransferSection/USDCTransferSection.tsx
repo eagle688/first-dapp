@@ -1,10 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useBalance,
 } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query"; // 正确的导入
+
 import { parseUnits } from "viem"; // 适配 ERC-20 任意小数位数的转换工具
 import GradientButton from "../../../../components/ui/GradientButton";
 import { USDC } from "@/constants/tokens";
@@ -20,6 +22,7 @@ export default function USDCTransferSection({
 }: TransferSectionProps) {
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
+  const queryClient = useQueryClient();
 
   // 1. 获取当前网络的 USDC 合约地址
   const usdcAddress = chain?.id ? USDC[chain.id] : undefined;
@@ -106,6 +109,18 @@ export default function USDCTransferSection({
       args: [recipient as `0x${string}`, amountInCent],
     });
   };
+
+  // 监听 USDC 交易确认
+  useEffect(() => {
+    if (isConfirmed) {
+      console.log("USDC转账成功，刷新余额");
+      queryClient.invalidateQueries({ queryKey: ["tokenBalance"] });
+      queryClient.refetchQueries({ queryKey: ["tokenBalance"] });
+
+      setSendAmount("");
+      setRecipient("");
+    }
+  }, [isConfirmed, queryClient]);
 
   return (
     <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">

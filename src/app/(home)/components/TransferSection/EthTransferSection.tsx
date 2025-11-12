@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useSendTransaction,
   useWaitForTransactionReceipt,
   useBalance,
 } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query"; // 正确的导入
 import { parseEther } from "viem";
 import GradientButton from "../../../../components/ui/GradientButton";
 
@@ -17,6 +18,7 @@ export default function EthTransferSection({
 }: EthTransferSectionProps) {
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
+  const queryClient = useQueryClient();
 
   // 修复 useBalance 的 enabled 配置
   const { data: balanceData } = useBalance({
@@ -78,6 +80,18 @@ export default function EthTransferSection({
       value: amountInWei,
     });
   };
+
+  // 监听 ETH 交易确认
+  useEffect(() => {
+    if (isConfirmed) {
+      console.log("ETH转账成功，刷新余额");
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
+      // 2. 立即重新获取（确保立即更新）
+      queryClient.refetchQueries({ queryKey: ["balance"] });
+      setSendAmount("");
+      setRecipient("");
+    }
+  }, [isConfirmed, queryClient]);
 
   return (
     <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">

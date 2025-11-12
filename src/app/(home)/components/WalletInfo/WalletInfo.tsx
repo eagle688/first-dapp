@@ -15,6 +15,12 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
 
   const { data: balanceData, isLoading: balanceLoading } = useBalance({
     address,
+    query: {
+      staleTime: 0, // 立即视为过期
+      gcTime: 0, // 立即垃圾回收
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+    },
   });
 
   const usdcAddress = getUsdcAddress(chain?.id);
@@ -22,6 +28,12 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
   const { data: usdcBalanceData, isLoading: usdcLoading } = useBalance({
     address,
     token: usdcAddress,
+    query: {
+      staleTime: 0, // 立即视为过期
+      gcTime: 0, // 立即垃圾回收
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+    },
   });
 
   const formattedAddress = address
