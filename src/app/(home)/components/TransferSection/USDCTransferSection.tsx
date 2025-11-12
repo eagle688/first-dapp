@@ -134,7 +134,7 @@ export default function USDCTransferSection({
         />
         <input
           type="text" // 改为 text 类型，配合正则控制格式
-          inputmode="decimal" // 移动端弹出数字键盘
+          inputMode="decimal" // 移动端弹出数字键盘
           placeholder="转账金额 (USDC，最多 6 位小数)"
           value={sendAmount}
           onChange={handleAmountChange}

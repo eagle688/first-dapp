@@ -117,7 +117,7 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
         </div>
       </div>
 
-      <EthTransferSection address={address} chain={chain} />
+      <EthTransferSection address={address} />
 
       <USDCTransferSection address={address} chain={chain} />
 

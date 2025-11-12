@@ -1,8 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["ES2020", "DOM", "dom.iterable"], // 新增 dom.iterable  
-    "allowJs": true,
+    "lib": ["ES2020", "DOM", "dom.iterable", 
+     "ES2016" // 新增：补充 inputmode 等属性的类型定义
+    ], // 新增 dom.iterable  
+     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
