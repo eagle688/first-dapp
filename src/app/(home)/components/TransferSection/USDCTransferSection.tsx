@@ -33,7 +33,7 @@ export default function USDCTransferSection({
     token: usdcAddress, // 指定 USDC 合约地址，查询 ERC-20 余额
     query: {
       enabled: !!address && !!usdcAddress, // 地址和 USDC 合约都存在时才查询
-      staleTime: 5000, // 5 秒内不重复查询
+      staleTime: 0, // 5 秒内不重复查询
     },
   });
   const userUSDCBalance = usdcBalanceData?.value || 0n; // 余额（wei/cent 单位）
@@ -51,8 +51,8 @@ export default function USDCTransferSection({
   // 4. 金额输入处理：限制 6 位小数，禁止无效格式
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // 正则：仅允许数字、最多 1 个小数点、小数点后最多 6 位（USDC 特性）
-    const regex = /^(\d+)(\.(\d{0,6}))?$/;
+    // 正则：允许整数、带小数点的数字，或者以小数点开头（例如 .5），小数部分最多 6 位（USDC 特性）
+    const regex = /^(?:\d+|\d*\.\d{0,6})$/;
     if (regex.test(value) || value === "") {
       setSendAmount(value);
     }
@@ -64,8 +64,9 @@ export default function USDCTransferSection({
       return alert("请填写完整信息并确保网络/钱包已连接");
     }
 
-    // 地址格式校验（保留原逻辑）
-    if (!recipient.startsWith("0x") || recipient.length !== 42) {
+    // 地址格式校验：更严格地校验十六进制地址格式（不做 checksum 验证）
+    const ethAddressRegex = /^0x[a-fA-F0-9]{40}$/;
+    if (!ethAddressRegex.test(recipient)) {
       return alert("请输入有效的以太坊地址");
     }
 
@@ -81,6 +82,7 @@ export default function USDCTransferSection({
       // parseUnits(金额字符串, 小数位数)：直接处理字符串，避免浮点数误差
       amountInCent = parseUnits(sendAmount, 6); // USDC 是 6 位小数，固定传 6
     } catch (err) {
+      console.error("parseUnits error:", err);
       return alert("金额格式错误，请输入合法数字");
     }
 
@@ -114,13 +116,15 @@ export default function USDCTransferSection({
   useEffect(() => {
     if (isConfirmed) {
       console.log("USDC转账成功，刷新余额");
-      queryClient.invalidateQueries({ queryKey: ["tokenBalance"] });
-      queryClient.refetchQueries({ queryKey: ["tokenBalance"] });
+      // 只刷新与当前用户+代币相关的余额缓存，避免全局抖动
+      queryClient.invalidateQueries({
+        queryKey: ["tokenBalance", address, usdcAddress],
+      });
 
       setSendAmount("");
       setRecipient("");
     }
-  }, [isConfirmed, queryClient]);
+  }, [isConfirmed, queryClient, address, usdcAddress]);
 
   return (
     <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">

@@ -41,7 +41,8 @@ export default function EthTransferSection({
   // 金额输入处理（不变）
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    const regex = /^(\d+)(\.(\d{0,18}))?$/;
+    // 支持以小数点开头（例如 .5），小数部分最多 18 位
+    const regex = /^(?:\d+|\d*\.\d{0,18})$/;
     if (regex.test(value) || value === "") {
       setSendAmount(value);
     }
@@ -66,6 +67,7 @@ export default function EthTransferSection({
     try {
       amountInWei = parseEther(sendAmount); // 直接将 ETH 字符串转为 wei（BigInt）
     } catch (err) {
+      console.error("parseEther error:", err);
       return alert("金额格式错误，请输入合法数字");
     }
 
@@ -85,13 +87,14 @@ export default function EthTransferSection({
   useEffect(() => {
     if (isConfirmed) {
       console.log("ETH转账成功，刷新余额");
-      queryClient.invalidateQueries({ queryKey: ["balance"] });
-      // 2. 立即重新获取（确保立即更新）
-      queryClient.refetchQueries({ queryKey: ["balance"] });
+      // 仅刷新当前 address 的余额缓存
+      queryClient.invalidateQueries({ queryKey: ["balance", address] });
+      // 立即重新获取（确保 UI 及时更新）
+      queryClient.refetchQueries({ queryKey: ["balance", address] });
       setSendAmount("");
       setRecipient("");
     }
-  }, [isConfirmed, queryClient]);
+  }, [isConfirmed, queryClient, address]);
 
   return (
     <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">
