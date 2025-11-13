@@ -1,6 +1,7 @@
 "use client";
-import { useConnect, useDisconnect } from "wagmi";
-import { metaMask, injected } from "wagmi/connectors";
+import { useConnect } from "wagmi";
+import { useRouter } from "next/navigation";
+import { metaMask } from "wagmi/connectors";
 import GradientButton from "../../ui/GradientButton";
 
 interface WalletConnectProps {
@@ -11,22 +12,71 @@ export default function WalletConnect({
   onConnectSuccess,
 }: WalletConnectProps) {
   const { connect } = useConnect();
-  const { disconnect } = useDisconnect();
+  const router = useRouter();
 
-  const connectMetaMask = () => {
-    connect({ connector: metaMask() });
+  const handleConnectMetaMask = async () => {
+    try {
+      // 直接调用 MetaMask，不通过 wagmi connector
+      const ethereum =
+        typeof window !== "undefined"
+          ? (window as unknown as Record<string, unknown>).ethereum
+          : undefined;
+      if (
+        ethereum &&
+        typeof ethereum === "object" &&
+        "isMetaMask" in ethereum &&
+        "request" in ethereum
+      ) {
+        const request = (
+          ethereum as unknown as {
+            request: (args: { method: string }) => Promise<unknown>;
+          }
+        ).request;
+        const accounts = await request({
+          method: "eth_requestAccounts",
+        });
+        if (Array.isArray(accounts) && accounts[0]) {
+          connect({ connector: metaMask() });
+          onConnectSuccess();
+        }
+      } else {
+        alert("未检测到 MetaMask");
+      }
+    } catch (error) {
+      alert(
+        "连接失败: " + (error instanceof Error ? error.message : "未知错误")
+      );
+    }
   };
 
-  const connectOtherWallet = async () => {
-    if (window.okxwallet) {
+  const handleConnectOtherWallet = async () => {
+    const okxwallet =
+      typeof window !== "undefined"
+        ? (window as unknown as Record<string, unknown>).okxwallet
+        : undefined;
+    if (okxwallet && typeof okxwallet === "object" && "request" in okxwallet) {
       try {
-        disconnect();
-        const accounts = await window.okxwallet.request<string[]>({
+        const request = (
+          okxwallet as unknown as {
+            request: (args: { method: string }) => Promise<unknown>;
+          }
+        ).request;
+        const accounts = await request({
           method: "eth_requestAccounts",
         });
 
-        if (accounts?.[0]) {
-          connect({ connector: injected() });
+        if (Array.isArray(accounts) && accounts[0]) {
+          // 使用 OKX 钱包后，触发 app-router 的刷新以重新初始化 wagmi
+          // 使用 router.refresh() 避免强制完整页面 reload，能在 Vercel/SSR 环境下正确触发重新获取服务端数据
+          setTimeout(() => {
+            try {
+              router.refresh();
+            } catch {
+              // 回退到 window.reload 如果 router.refresh 不可用（保守做法）
+              // 这里不抛出异常，保证用户仍然能在旧的环境下得到刷新效果
+              if (typeof window !== "undefined") window.location.reload();
+            }
+          }, 500);
           onConnectSuccess();
         }
       } catch (error) {
@@ -44,7 +94,7 @@ export default function WalletConnect({
       <p className="text-gray-300 mb-4">选择连接方式</p>
       <div className="space-y-3">
         <GradientButton
-          onClick={connectMetaMask}
+          onClick={handleConnectMetaMask}
           fromColor="from-blue-500"
           toColor="to-purple-600"
         >
@@ -53,7 +103,7 @@ export default function WalletConnect({
         </GradientButton>
 
         <GradientButton
-          onClick={connectOtherWallet}
+          onClick={handleConnectOtherWallet}
           fromColor="from-green-500"
           toColor="to-blue-600"
         >
