@@ -5,9 +5,10 @@ import WalletConnect from "../../components/domains/wallet/WalletConnect";
 import WalletInfo from "./components/WalletInfo/WalletInfo";
 
 export default function HomePage() {
-  const { isConnected } = useAccount();
+  const { isConnected, connector } = useAccount();
   const { disconnect } = useDisconnect();
   const [manualConnected, setManualConnected] = useState(false);
+  const [forceDisconnected, setForceDisconnected] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -17,14 +18,35 @@ export default function HomePage() {
     }, 0);
   }, []);
 
-  const isReallyConnected = isHydrated && (isConnected || manualConnected);
+  const isReallyConnected =
+    isHydrated && ((isConnected && !forceDisconnected) || manualConnected);
 
   const handleConnectSuccess = () => {
     setManualConnected(true);
+    setForceDisconnected(false);
   };
 
   const handleDisconnect = () => {
-    disconnect();
+    // For injected wallets (MetaMask / OKX) calling connector.disconnect()
+    // may mark the provider as permanently disconnected in the extension
+    // and prevent it from prompting again. Avoid calling disconnect for
+    // injected providers so the browser extension can still show the
+    // permissions prompt on the next connect attempt.
+    const injectedLike =
+      connector?.id === "injected" ||
+      (connector?.name && /meta|okx|injected/i.test(String(connector.name)));
+
+    if (!injectedLike) {
+      // For non-injected connectors (WalletConnect, etc.) perform a full disconnect
+      disconnect();
+    } else {
+      // For injected providers, don't call wagmi.disconnect() (some extensions
+      // treat that as a permanent programmatic disconnect). Instead, toggle a
+      // local flag so UI hides while the provider remains available for future
+      // connect attempts.
+      setForceDisconnected(true);
+    }
+
     setManualConnected(false);
   };
 

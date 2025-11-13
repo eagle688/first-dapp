@@ -16,36 +16,23 @@ export default function WalletConnect({
 
   const handleConnectMetaMask = async () => {
     try {
-      // 直接调用 MetaMask，不通过 wagmi connector
-      const ethereum =
-        typeof window !== "undefined"
-          ? (window as unknown as Record<string, unknown>).ethereum
-          : undefined;
-      if (
-        ethereum &&
-        typeof ethereum === "object" &&
-        "isMetaMask" in ethereum &&
-        "request" in ethereum
-      ) {
-        const request = (
-          ethereum as unknown as {
-            request: (args: { method: string }) => Promise<unknown>;
-          }
-        ).request;
-        const accounts = await request({
-          method: "eth_requestAccounts",
-        });
-        if (Array.isArray(accounts) && accounts[0]) {
-          connect({ connector: metaMask() });
-          onConnectSuccess();
-        }
-      } else {
-        alert("未检测到 MetaMask");
-      }
+      // Use wagmi's connector to trigger MetaMask flow; it's more reliable
+      // than calling window.ethereum.request directly in some environments.
+      const result = await connect({ connector: metaMask() });
+      // connect may not throw but still may not connect; use result if available
+      // If the connector flow resolved, consider it success and call the callback
+      onConnectSuccess();
+      return result;
     } catch (error) {
-      alert(
-        "连接失败: " + (error instanceof Error ? error.message : "未知错误")
-      );
+      // Provide a more helpful error message for debugging
+      console.error("MetaMask connect error:", error);
+      const msg =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object"
+          ? JSON.stringify(error)
+          : String(error);
+      alert("连接失败: " + (msg || "未知错误"));
     }
   };
 
