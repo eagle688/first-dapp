@@ -14,108 +14,55 @@ export default function WalletConnect({
   const { connect } = useConnect();
   const router = useRouter();
 
+  // lightweight provider shape used locally
+  type ProviderLike = {
+    request?: (args: {
+      method: string;
+      params?: unknown[];
+    }) => Promise<unknown>;
+    isMetaMask?: boolean;
+  };
+
+  const win =
+    typeof window !== "undefined"
+      ? (window as unknown as Window & {
+          okxwallet?: ProviderLike;
+          ethereum?: ProviderLike;
+        })
+      : undefined;
+
   const handleConnectMetaMask = async () => {
     try {
-      // Use wagmi's connector to trigger MetaMask flow; it's more reliable
-      // than calling window.ethereum.request directly in some environments.
-      const result = await connect({ connector: metaMask() });
-      // connect may not throw but still may not connect; use result if available
-      // If the connector flow resolved, consider it success and call the callback
+      await connect({ connector: metaMask() });
       onConnectSuccess();
-      return result;
-    } catch (error) {
-      // Provide a more helpful error message for debugging
-      console.error("MetaMask connect error:", error);
-      const msg =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object"
-          ? JSON.stringify(error)
-          : String(error);
+    } catch (err) {
+      console.error("MetaMask connect error:", err);
+      const msg = err instanceof Error ? err.message : String(err);
       alert("连接失败: " + (msg || "未知错误"));
     }
   };
 
   const handleConnectOtherWallet = async () => {
-    // Preferred: use wagmi injected connector inside the user click handler
-    // so the wallet popup is triggered in production (popup must be in a
-    // user gesture). This is more reliable than calling provider.request
-    // first and then registering with wagmi.
-    try {
-      console.debug("Attempting connect with injected() for OKX");
-      const result = await connect({ connector: injected() });
-      console.debug("connect(injected) result:", result);
-
-      // Try to read accounts after connect to confirm authorization
-      const okxwallet =
-        typeof window !== "undefined"
-          ? ((window as unknown as Record<string, unknown>)
-              .okxwallet as unknown as {
-              request?: (args: { method: string }) => Promise<unknown>;
-            })
-          : undefined;
-      let accounts: unknown = null;
+    // Prefer calling OKX provider directly in the click handler so ONLY OKX
+    // popup opens. Avoid calling generic injected connect before this as that
+    // can cause other injected wallets (MetaMask) to prompt too.
+    const okx = win?.okxwallet;
+    if (okx && typeof okx.request === "function") {
       try {
-        if (okxwallet && typeof okxwallet.request === "function") {
-          accounts = await okxwallet.request({ method: "eth_accounts" });
-        } else if (
-          (window as unknown as Record<string, unknown>).ethereum &&
-          typeof (window as unknown as Record<string, unknown>).ethereum ===
-            "object"
-        ) {
-          const eth = (window as unknown as Record<string, unknown>)
-            .ethereum as unknown as {
-            request?: (args: { method: string }) => Promise<unknown>;
-          };
-          if (eth.request)
-            accounts = await eth.request({ method: "eth_accounts" });
-        }
-      } catch (e) {
-        console.warn("Failed to read accounts after injected connect:", e);
-      }
-
-      console.debug("accounts after injected connect:", accounts);
-
-      if (Array.isArray(accounts) ? accounts[0] : true) {
-        onConnectSuccess();
-        setTimeout(() => {
-          try {
-            router.refresh();
-          } catch {
-            if (typeof window !== "undefined") window.location.reload();
-          }
-        }, 500);
-        return;
-      }
-    } catch (err) {
-      console.warn("connect(injected) threw:", err);
-    }
-
-    // Fallback: attempt okxwallet.request if available (may be blocked if not
-    // in a user gesture). If it succeeds, register injected() with wagmi and
-    // refresh.
-    const okxwallet =
-      typeof window !== "undefined"
-        ? ((window as unknown as Record<string, unknown>)
-            .okxwallet as unknown as {
-            request?: (args: { method: string }) => Promise<unknown>;
-          })
-        : undefined;
-    if (okxwallet && typeof okxwallet.request === "function") {
-      try {
-        const accounts = await okxwallet.request({
-          method: "eth_requestAccounts",
-        });
-        if (Array.isArray(accounts) && accounts[0]) {
+        const accounts = await okx.request({ method: "eth_requestAccounts" });
+        if (Array.isArray(accounts) && accounts.length > 0) {
+          // Attempt to register the injected connector with wagmi so
+          // wagmi's hooks (useAccount/useBalance/etc.) will observe
+          // future account and chain changes. Do this silently — if it
+          // fails we still have accounts from OKX above.
           try {
             await connect({ connector: injected() });
           } catch (e) {
-            console.warn(
-              "Failed to register injected connector with wagmi:",
-              e
-            );
+            console.warn("silent injected connect failed:", e);
           }
+
           onConnectSuccess();
+          // soft refresh to let app re-detect provider state
           setTimeout(() => {
             try {
               router.refresh();
@@ -126,10 +73,8 @@ export default function WalletConnect({
           return;
         }
       } catch (err) {
-        console.error("okxwallet.request fallback failed:", err);
-        alert(
-          "连接失败: " + (err instanceof Error ? err.message : String(err))
-        );
+        console.error("okxwallet.request failed:", err);
+        alert("连接失败: " + (err instanceof Error ? err.message : String(err)));
         return;
       }
     }
@@ -171,3 +116,4 @@ export default function WalletConnect({
     </div>
   );
 }
+// Fallback: attempt okxwallet.request if available (may be blocked if not
