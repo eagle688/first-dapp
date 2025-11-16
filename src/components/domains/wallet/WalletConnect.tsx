@@ -1,7 +1,7 @@
 "use client";
 import { useConnect } from "wagmi";
 import { useRouter } from "next/navigation";
-import { metaMask } from "wagmi/connectors";
+import { metaMask, injected } from "wagmi/connectors";
 import GradientButton from "../../ui/GradientButton";
 
 interface WalletConnectProps {
@@ -53,17 +53,26 @@ export default function WalletConnect({
         });
 
         if (Array.isArray(accounts) && accounts[0]) {
-          // 使用 OKX 钱包后，触发 app-router 的刷新以重新初始化 wagmi
-          // 使用 router.refresh() 避免强制完整页面 reload，能在 Vercel/SSR 环境下正确触发重新获取服务端数据
+          try {
+            // 告知 wagmi 使用 injected 连接器（OKX 也是注入式钱包）
+            await connect({ connector: injected() });
+          } catch (e) {
+            // 如果无法通过 injected() 成功连接（某些环境下可能失败），仍然继续并回退到刷新页面
+            console.warn(
+              "Failed to register injected connector with wagmi:",
+              e
+            );
+          }
+
+          // 使用 router.refresh() 触发 app-router 刷新并让页面重载连接状态
           setTimeout(() => {
             try {
               router.refresh();
             } catch {
-              // 回退到 window.reload 如果 router.refresh 不可用（保守做法）
-              // 这里不抛出异常，保证用户仍然能在旧的环境下得到刷新效果
               if (typeof window !== "undefined") window.location.reload();
             }
           }, 500);
+
           onConnectSuccess();
         }
       } catch (error) {
