@@ -52,7 +52,8 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
 
   // 检查是否正在切换网络或加载
   const isSwitchingNetwork = isConnected && !chain;
-  const isLoading = balanceLoading || usdcLoading;
+  // combine loading flags if needed later
+  const isAnyLoading = balanceLoading || usdcLoading;
 
   return (
     <div className="text-center">
@@ -105,6 +106,9 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
         <div className="inline-flex items-center bg-green-500/20 text-green-400 py-1 px-3 rounded-full text-sm mb-4">
           <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
           已成功连接 - {chain?.name || "未知网络"}
+          {isAnyLoading && (
+            <span className="ml-2 text-xs text-gray-300">加载中...</span>
+          )}
         </div>
         <p className="text-gray-300 mb-1">您的钱包地址</p>
         <p className="font-mono text-lg bg-black/20 p-3 rounded-lg break-all">
