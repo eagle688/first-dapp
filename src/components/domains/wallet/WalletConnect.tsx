@@ -37,34 +37,85 @@ export default function WalletConnect({
   };
 
   const handleConnectOtherWallet = async () => {
+    // Preferred: use wagmi injected connector inside the user click handler
+    // so the wallet popup is triggered in production (popup must be in a
+    // user gesture). This is more reliable than calling provider.request
+    // first and then registering with wagmi.
+    try {
+      console.debug("Attempting connect with injected() for OKX");
+      const result = await connect({ connector: injected() });
+      console.debug("connect(injected) result:", result);
+
+      // Try to read accounts after connect to confirm authorization
+      const okxwallet =
+        typeof window !== "undefined"
+          ? ((window as unknown as Record<string, unknown>)
+              .okxwallet as unknown as {
+              request?: (args: { method: string }) => Promise<unknown>;
+            })
+          : undefined;
+      let accounts: unknown = null;
+      try {
+        if (okxwallet && typeof okxwallet.request === "function") {
+          accounts = await okxwallet.request({ method: "eth_accounts" });
+        } else if (
+          (window as unknown as Record<string, unknown>).ethereum &&
+          typeof (window as unknown as Record<string, unknown>).ethereum ===
+            "object"
+        ) {
+          const eth = (window as unknown as Record<string, unknown>)
+            .ethereum as unknown as {
+            request?: (args: { method: string }) => Promise<unknown>;
+          };
+          if (eth.request)
+            accounts = await eth.request({ method: "eth_accounts" });
+        }
+      } catch (e) {
+        console.warn("Failed to read accounts after injected connect:", e);
+      }
+
+      console.debug("accounts after injected connect:", accounts);
+
+      if (Array.isArray(accounts) ? accounts[0] : true) {
+        onConnectSuccess();
+        setTimeout(() => {
+          try {
+            router.refresh();
+          } catch {
+            if (typeof window !== "undefined") window.location.reload();
+          }
+        }, 500);
+        return;
+      }
+    } catch (err) {
+      console.warn("connect(injected) threw:", err);
+    }
+
+    // Fallback: attempt okxwallet.request if available (may be blocked if not
+    // in a user gesture). If it succeeds, register injected() with wagmi and
+    // refresh.
     const okxwallet =
       typeof window !== "undefined"
-        ? (window as unknown as Record<string, unknown>).okxwallet
+        ? ((window as unknown as Record<string, unknown>)
+            .okxwallet as unknown as {
+            request?: (args: { method: string }) => Promise<unknown>;
+          })
         : undefined;
-    if (okxwallet && typeof okxwallet === "object" && "request" in okxwallet) {
+    if (okxwallet && typeof okxwallet.request === "function") {
       try {
-        const request = (
-          okxwallet as unknown as {
-            request: (args: { method: string }) => Promise<unknown>;
-          }
-        ).request;
-        const accounts = await request({
+        const accounts = await okxwallet.request({
           method: "eth_requestAccounts",
         });
-
         if (Array.isArray(accounts) && accounts[0]) {
           try {
-            // 告知 wagmi 使用 injected 连接器（OKX 也是注入式钱包）
             await connect({ connector: injected() });
           } catch (e) {
-            // 如果无法通过 injected() 成功连接（某些环境下可能失败），仍然继续并回退到刷新页面
             console.warn(
               "Failed to register injected connector with wagmi:",
               e
             );
           }
-
-          // 使用 router.refresh() 触发 app-router 刷新并让页面重载连接状态
+          onConnectSuccess();
           setTimeout(() => {
             try {
               router.refresh();
@@ -72,17 +123,18 @@ export default function WalletConnect({
               if (typeof window !== "undefined") window.location.reload();
             }
           }, 500);
-
-          onConnectSuccess();
+          return;
         }
-      } catch (error) {
+      } catch (err) {
+        console.error("okxwallet.request fallback failed:", err);
         alert(
-          "连接失败: " + (error instanceof Error ? error.message : "未知错误")
+          "连接失败: " + (err instanceof Error ? err.message : String(err))
         );
+        return;
       }
-    } else {
-      alert("未检测到OKX钱包");
     }
+
+    alert("未检测到OKX钱包或无法唤起连接弹窗（请确认扩展已启用）");
   };
 
   return (
