@@ -4,6 +4,7 @@ import { useSwitchChain, useBalance, useAccount } from "wagmi";
 import { USDCTransferSection, EthTransferSection } from "../TransferSection";
 import GradientButton from "../../../../components/ui/GradientButton";
 import { getUsdcAddress } from "@/constants/tokens";
+import TransactionHistory from "../TransactionHistory/TransactionHistory";
 
 interface WalletInfoProps {
   onDisconnect: () => void;
@@ -75,16 +76,13 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
           </button>
         </div>
       </div>
-
       {/* 网络切换状态提示 */}
       {isSwitchingNetwork && (
         <div className="mb-4 p-3 bg-yellow-500/20 text-yellow-400 rounded-lg">
           🔄 正在切换网络...
         </div>
       )}
-
       {/* 网络切换提醒 */}
-
       {/* <div>
         <p>身份地址: {address} （全网通用）</p>
         <p>当前网络: {chain?.name} （决定余额显示）</p>
@@ -101,7 +99,6 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
           </div>
         )}
       </div> */}
-
       <div className="mb-6">
         <div className="inline-flex items-center bg-green-500/20 text-green-400 py-1 px-3 rounded-full text-sm mb-4">
           <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
@@ -132,11 +129,9 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
           )}
         </div>
       </div>
-
       <EthTransferSection address={address} />
-
       <USDCTransferSection address={address} chain={chain} />
-
+      <TransactionHistory address={address} />
       <GradientButton
         onClick={onDisconnect}
         fromColor="from-gray-600"
