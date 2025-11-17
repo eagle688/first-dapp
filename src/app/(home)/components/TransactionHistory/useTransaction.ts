@@ -1,13 +1,16 @@
 // useTransactions.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getTransfers, type AlchemyTransfer } from '@/lib/alchemy';
 import { Transaction, PaginationInfo } from './types';
 
-export const useTransactions = (address: `0x${string}` | undefined) => {
+export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [pagination, setPagination] = useState<PaginationInfo>({ hasMore: false });
+  const pageCache = useRef<Map<number, Transaction[]>>(new Map());
+  const nextPageKey = useRef<Map<number, string | undefined>>(new Map());
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
 // useTransactions.ts - 更新 normalizeTransaction 函数
 const normalizeTransaction = (transfer: AlchemyTransfer, currentAddress: string): Transaction => {
@@ -39,51 +42,90 @@ const normalizeTransaction = (transfer: AlchemyTransfer, currentAddress: string)
   };
 };
 
-  const fetchTransactions = useCallback(async (isLoadMore = false) => {
+  // Fetch a specific page (1-based). This will sequentially fetch previous pages if needed
+  const fetchPage = useCallback(async (pageNumber = 1, append = false) => {
     if (!address) return;
 
-    const loadingState = isLoadMore ? setIsLoadingMore : setIsLoading;
+    const loadingState = append ? setIsLoadingMore : setIsLoading;
     loadingState(true);
 
     try {
-      const result = await getTransfers(address, isLoadMore ? pagination.pageKey : undefined);
-      const newTransactions = result?.transfers.map((transfer: AlchemyTransfer) => 
-        normalizeTransaction(transfer, address)
-      ) || []
+      // Determine pageKey by ensuring we have fetched previous pages' nextPageKey
+      let pageKeyToUse: string | undefined = undefined;
 
-      if (isLoadMore) {
-        setTransactions(prev => [...prev, ...newTransactions]);
+      for (let i = 1; i < pageNumber; i++) {
+        // if we already have the nextPageKey after page i, use it; else fetch page i to populate it
+        if (!nextPageKey.current.has(i)) {
+          const res = await getTransfers(address, pageKeyToUse, pageSize);
+          const txs = (res?.transfers || []).map((t: AlchemyTransfer) => normalizeTransaction(t, address));
+          pageCache.current.set(i, txs);
+          nextPageKey.current.set(i, res?.pageKey);
+          pageKeyToUse = res?.pageKey;
+          if (!res?.pageKey) break;
+        } else {
+          pageKeyToUse = nextPageKey.current.get(i);
+        }
+      }
+
+      // now fetch the requested page if not cached
+      if (!pageCache.current.has(pageNumber)) {
+        const res = await getTransfers(address, pageKeyToUse, pageSize);
+        const txs = (res?.transfers || []).map((t: AlchemyTransfer) => normalizeTransaction(t, address));
+        pageCache.current.set(pageNumber, txs);
+        nextPageKey.current.set(pageNumber, res?.pageKey);
+      }
+
+      const pageTxs = pageCache.current.get(pageNumber) || [];
+
+      if (append) {
+        setTransactions(prev => [...prev, ...pageTxs]);
       } else {
-        setTransactions(newTransactions);
+        setTransactions(pageTxs);
+        setCurrentPage(pageNumber);
       }
 
       setPagination({
-        pageKey: result?.pageKey,
-        hasMore: !!result?.pageKey
+        pageKey: nextPageKey.current.get(pageNumber),
+        hasMore: !!nextPageKey.current.get(pageNumber),
       });
     } catch (error) {
       console.error('获取交易历史失败:', error);
     } finally {
       loadingState(false);
     }
-  }, [address, pagination.pageKey]);
+  }, [address, pageSize]);
 
   const loadMore = useCallback(() => {
     if (pagination.hasMore && !isLoadingMore) {
-      fetchTransactions(true);
+      const nextPage = currentPage + 1;
+      fetchPage(nextPage, true);
+      setCurrentPage(nextPage);
     }
-  }, [pagination.hasMore, isLoadingMore, fetchTransactions]);
+  }, [pagination.hasMore, isLoadingMore, fetchPage, currentPage]);
+
+  const goToPage = useCallback((pageNumber: number) => {
+    if (pageNumber < 1) return;
+    fetchPage(pageNumber, false);
+  }, [fetchPage]);
 
   useEffect(() => {
-    fetchTransactions(false);
-  }, [fetchTransactions]);
+    // reset caches when address changes
+    pageCache.current.clear();
+    nextPageKey.current.clear();
+    setCurrentPage(1);
+    fetchPage(1, false);
+  }, [fetchPage, address]);
 
   return {
     transactions,
     isLoading,
     isLoadingMore,
     hasMore: pagination.hasMore,
-    refetch: () => fetchTransactions(false),
-    loadMore
+    currentPage,
+    refetch: () => fetchPage(1, false),
+    loadMore,
+    goToPage,
+    // expose cache size for UI page buttons
+    fetchedPages: () => pageCache.current.size,
   };
 };

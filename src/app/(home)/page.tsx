@@ -3,8 +3,6 @@ import { useState, useEffect } from "react";
 import { useAccount, useDisconnect } from "wagmi";
 import WalletConnect from "../../components/domains/wallet/WalletConnect";
 import WalletInfo from "./components/WalletInfo/WalletInfo";
-import { TestAlchemy } from "./components/TransactionHistory/TestAlchemy";
-import { AlchemyDebugger } from "./components/TransactionHistory/AlchemyDebugger";
 
 export default function HomePage() {
   const { isConnected, connector } = useAccount();
@@ -54,8 +52,8 @@ export default function HomePage() {
 
   if (!isHydrated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-purple-900 flex items-center justify-center">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 w-full max-w-md border border-white/20">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-purple-900 flex items-center justify-center p-8">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 w-full max-w-full md:max-w-3xl lg:max-w-6xl border border-white/20">
           <div className="text-center text-white">加载中...</div>
         </div>
       </div>
@@ -64,11 +62,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-purple-900 flex flex-col items-center justify-center p-8 text-white">
-      <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 w-full max-w-md border border-white/20">
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 md:p-10 w-full max-w-full md:max-w-3xl lg:max-w-6xl border border-white/20">
         <h1 className="text-3xl font-bold text-center mb-2">我的首个DApp1</h1>
         <p className="text-center text-gray-300 mb-8">欢迎进入Web3世界</p>
-        <TestAlchemy />
-        <AlchemyDebugger />
+
         {!isReallyConnected ? (
           <WalletConnect onConnectSuccess={handleConnectSuccess} />
         ) : (

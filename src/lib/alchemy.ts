@@ -29,14 +29,14 @@ export interface AlchemyResponse {
 }
 
 // lib/alchemy.ts - 更新 getTransfers 函数
-export async function getTransfers(address: string, pageKey?: string): Promise<AlchemyResponse['result']> {
+export async function getTransfers(address: string, pageKey?: string, pageSize = 5): Promise<AlchemyResponse['result']> {
   try {
     // 分别查询发送和接收的交易
     const [sentTransfers, receivedTransfers] = await Promise.all([
       // 查询发送的交易
-      fetchTransfersByMode(address, 'sent', pageKey),
+      fetchTransfersByMode(address, 'sent', pageKey, pageSize),
       // 查询接收的交易  
-      fetchTransfersByMode(address, 'received', pageKey)
+      fetchTransfersByMode(address, 'received', pageKey, pageSize)
     ]);
 
     // 合并结果并按时间排序
@@ -50,7 +50,7 @@ export async function getTransfers(address: string, pageKey?: string): Promise<A
     });
 
     return {
-      transfers: allTransfers.slice(0, 20), // 限制20条
+      transfers: allTransfers,
       pageKey: sentTransfers?.pageKey || receivedTransfers?.pageKey
     };
   } catch (error) {
@@ -60,13 +60,14 @@ export async function getTransfers(address: string, pageKey?: string): Promise<A
 }
 
 // 新增：按模式查询交易的辅助函数
-async function fetchTransfersByMode(address: string, mode: 'sent' | 'received', pageKey?: string) {
+async function fetchTransfersByMode(address: string, mode: 'sent' | 'received', pageKey?: string, pageSize = 5) {
+  const hexCount = '0x' + pageSize.toString(16);
   const params: Record<string, unknown> = {
     fromBlock: '0x0',
     toBlock: 'latest',
     category: ['external', 'internal', 'erc20'],
     withMetadata: true,
-    maxCount: '0x14', // 每模式20条，合并后可能更多
+    maxCount: hexCount, // 每模式按 pageSize
     excludeZeroValue: false,
     ...(pageKey && { pageKey: pageKey }),
   };

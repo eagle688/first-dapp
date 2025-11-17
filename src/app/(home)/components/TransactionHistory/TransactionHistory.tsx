@@ -6,10 +6,10 @@ import TransactionList from "./TransactionList"; // 可以进一步拆分列表U
 export default function TransactionHistory({
   address,
 }: TransactionHistoryProps) {
-  const { transactions, isLoading, refetch } = useTransactions(address);
+  const { transactions, isLoading, isLoadingMore, hasMore, refetch, loadMore, currentPage, goToPage, fetchedPages } = useTransactions(address, 5);
 
   return (
-    <div className="mt-8 p-6 bg-white/5 rounded-xl border border-white/10">
+    <div className="mt-8 p-6 bg-white/5 rounded-xl border border-white/10 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-semibold">📜 交易历史</h3>
         <button
@@ -21,7 +21,16 @@ export default function TransactionHistory({
         </button>
       </div>
 
-      <TransactionList transactions={transactions} isLoading={isLoading} />
+      <TransactionList
+        transactions={transactions}
+        isLoading={isLoading}
+        isLoadingMore={isLoadingMore}
+        hasMore={hasMore}
+        onLoadMore={loadMore}
+        currentPage={currentPage}
+        goToPage={goToPage}
+        fetchedPages={fetchedPages}
+      />
     </div>
   );
 }
