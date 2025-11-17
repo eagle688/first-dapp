@@ -1,6 +1,15 @@
-// lib/alchemy.ts
-const ALCHEMY_API_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
-const BASE_URL = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
+// 1. 直接写死密钥（和 Wagmi 配置中的密钥一致）
+const ALCHEMY_API_KEY = "DJZ_lg5rybcWBbfx-ceV4";
+// 2. 构建 BASE_URL（确保地址正确：eth-sepolia.g.alchemy.com，注意是 g.alchemy.com）
+const BASE_URL = ALCHEMY_API_KEY
+  ? `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
+  : undefined;
+
+// 注释掉这个警告（因为已经写死密钥，不会触发）
+// if (!ALCHEMY_API_KEY) {
+//   console.error('[lib/alchemy] Missing NEXT_PUBLIC_ALCHEMY_API_KEY environment variable');
+// }
+
 
 export interface AlchemyTransfer {
   blockNum: string;
@@ -79,6 +88,10 @@ async function fetchTransfersByMode(address: string, mode: 'sent' | 'received', 
     params.toAddress = address;
   }
 
+  if (!BASE_URL) {
+    throw new Error('Alchemy base URL is not configured (missing API key)');
+  }
+
   const response = await fetch(BASE_URL, {
     method: 'POST',
     headers: { 
@@ -92,11 +105,21 @@ async function fetchTransfersByMode(address: string, mode: 'sent' | 'received', 
       params: [params],
     }),
   });
+  // If BASE_URL is undefined, the fetch will fail. Check early.
+  if (!BASE_URL) {
+    throw new Error('Alchemy base URL is not configured (missing API key)');
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '<no body>');
+    console.error(`[lib/alchemy] Alchemy network error (${mode}):`, response.status, response.statusText, text);
+    return { transfers: [] };
+  }
 
   const data: AlchemyResponse = await response.json();
-  
+
   if (data.error) {
-    console.error(`Alchemy API ${mode} error:`, data.error);
+    console.error(`[lib/alchemy] Alchemy API ${mode} error:`, data.error);
     return { transfers: [] };
   }
 
