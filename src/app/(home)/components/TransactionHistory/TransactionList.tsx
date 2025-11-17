@@ -13,6 +13,7 @@ export default function TransactionList({
   currentPage,
   goToPage,
   totalPages,
+  allTransactions,
 }: TransactionListProps & {
   isLoadingMore: boolean;
   hasMore: boolean;
@@ -20,6 +21,7 @@ export default function TransactionList({
   currentPage?: number;
   goToPage?: (n: number) => void;
   totalPages?: number;
+  allTransactions?: Transaction[];
 }) {
   if (isLoading && transactions.length === 0) {
     return <LoadingSkeleton />;
@@ -32,11 +34,23 @@ export default function TransactionList({
   return (
     <div className="space-y-3">
       {/* 交易列表 - 每项在移动端垂直，在较大屏幕横向排列并留出更多空间 */}
-      {transactions.map((tx, i) => (
-        // use hash + index to ensure keys are unique when the same tx hash
-        // appears multiple times (e.g. multiple token transfers in one tx)
-        <TransactionItem key={`${tx.hash}-${i}`} transaction={tx} />
-      ))}
+      {/* Mobile: show full accumulated list */}
+      <div className="md:hidden space-y-3">
+        {allTransactions && allTransactions.length > 0 ? (
+          allTransactions.map((tx, i) => (
+            <TransactionItem key={`${tx.hash}-${i}`} transaction={tx} />
+          ))
+        ) : (
+          <></>
+        )}
+      </div>
+
+      {/* Desktop: show paginated list */}
+      <div className="hidden md:block space-y-3">
+        {transactions.map((tx, i) => (
+          <TransactionItem key={`${tx.hash}-${i}`} transaction={tx} />
+        ))}
+      </div>
 
       {/* 分页 / 加载更多 - 仅在移动端显示 */}
       {hasMore && (

@@ -121,6 +121,7 @@ export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5
 
   return {
     transactions: displayedTransactions,
+    allTransactions: allTransactions,
     isLoading,
     isLoadingMore,
     hasMore,

@@ -8,6 +8,7 @@ export default function TransactionHistory({
 }: TransactionHistoryProps) {
   const {
     transactions,
+    allTransactions,
     isLoading,
     isLoadingMore,
     hasMore,
@@ -40,6 +41,7 @@ export default function TransactionHistory({
         currentPage={currentPage}
         goToPage={goToPage}
         totalPages={totalPages}
+        allTransactions={allTransactions}
       />
     </div>
   );
