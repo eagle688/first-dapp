@@ -1,131 +1,156 @@
 // useTransactions.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getTransfers, type AlchemyTransfer } from '@/lib/alchemy';
-import { Transaction, PaginationInfo } from './types';
+import { Transaction } from './types';
 
 export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5) => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // Store all fetched transactions (not paginated, just accumulated)
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [pagination, setPagination] = useState<PaginationInfo>({ hasMore: false });
-  const pageCache = useRef<Map<number, Transaction[]>>(new Map());
-  const nextPageKey = useRef<Map<number, string | undefined>>(new Map());
-  const [currentPage, setCurrentPage] = useState<number>(1);
-
-// useTransactions.ts - 更新 normalizeTransaction 函数
-const normalizeTransaction = (transfer: AlchemyTransfer, currentAddress: string): Transaction => {
-  const isReceive = transfer.to.toLowerCase() === currentAddress.toLowerCase();
-  const timestamp = transfer.metadata?.blockTimestamp || new Date().toISOString();
+  const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
-  // 确定代币符号和值
-  let tokenSymbol = 'ETH';
-  let displayValue = '0';
-  
-  if (transfer.category === 'erc20') {
-    tokenSymbol = 'USDC'; // 或者从asset字段获取
-    displayValue = transfer.value ? (transfer.value / 1e6).toString() : '0'; // USDC有6位小数
-  } else {
-    // ETH交易 - 从value字段转换
-    displayValue = transfer.value ? (transfer.value / 1e18).toString() : '0';
-  }
+  // Refs to track what we've already fetched
+  const nextPageKeyRef = useRef<string | undefined>(undefined);
+  const allFetchedRef = useRef<Transaction[]>([]);
 
-  return {
-    hash: transfer.hash,
-    from: transfer.from,
-    to: transfer.to,
-    value: displayValue,
-    tokenSymbol: tokenSymbol,
-    timestamp: timestamp,
-    type: isReceive ? 'receive' : 'send',
-    category: transfer.category,
-    explorerUrl: `https://sepolia.etherscan.io/tx/${transfer.hash}`
+  const normalizeTransaction = (transfer: AlchemyTransfer, currentAddress: string): Transaction => {
+    const isReceive = transfer.to.toLowerCase() === currentAddress.toLowerCase();
+    const timestamp = transfer.metadata?.blockTimestamp || new Date().toISOString();
+    
+    let tokenSymbol = 'ETH';
+    let displayValue = '0';
+    
+    if (transfer.category === 'erc20') {
+      tokenSymbol = 'USDC';
+      displayValue = transfer.value ? (transfer.value / 1e6).toString() : '0';
+    } else {
+      displayValue = transfer.value ? (transfer.value / 1e18).toString() : '0';
+    }
+
+    return {
+      hash: transfer.hash,
+      from: transfer.from,
+      to: transfer.to,
+      value: displayValue,
+      tokenSymbol: tokenSymbol,
+      timestamp: timestamp,
+      type: isReceive ? 'receive' : 'send',
+      category: transfer.category,
+      explorerUrl: `https://sepolia.etherscan.io/tx/${transfer.hash}`
+    };
   };
-};
 
-  // Fetch a specific page (1-based). This will sequentially fetch previous pages if needed
-  const fetchPage = useCallback(async (pageNumber = 1, append = false) => {
+  // Fetch the next page from the API and accumulate
+  const fetchNextPage = useCallback(async () => {
     if (!address) return;
 
-    const loadingState = append ? setIsLoadingMore : setIsLoading;
-    loadingState(true);
-
+    setIsLoadingMore(true);
     try {
-      // Determine pageKey by ensuring we have fetched previous pages' nextPageKey
-      let pageKeyToUse: string | undefined = undefined;
+      const res = await getTransfers(address as string, nextPageKeyRef.current, pageSize);
+      const newTxs = (res?.transfers || []).map((t: AlchemyTransfer) =>
+        normalizeTransaction(t, address as string)
+      );
 
-      for (let i = 1; i < pageNumber; i++) {
-        // if we already have the nextPageKey after page i, use it; else fetch page i to populate it
-        if (!nextPageKey.current.has(i)) {
-          const res = await getTransfers(address, pageKeyToUse, pageSize);
-          const txs = (res?.transfers || []).map((t: AlchemyTransfer) => normalizeTransaction(t, address));
-          pageCache.current.set(i, txs);
-          nextPageKey.current.set(i, res?.pageKey);
-          pageKeyToUse = res?.pageKey;
-          if (!res?.pageKey) break;
-        } else {
-          pageKeyToUse = nextPageKey.current.get(i);
-        }
-      }
+      // Accumulate to all fetched
+      allFetchedRef.current = [...allFetchedRef.current, ...newTxs];
+      setAllTransactions([...allFetchedRef.current]);
 
-      // now fetch the requested page if not cached
-      if (!pageCache.current.has(pageNumber)) {
-        const res = await getTransfers(address, pageKeyToUse, pageSize);
-        const txs = (res?.transfers || []).map((t: AlchemyTransfer) => normalizeTransaction(t, address));
-        pageCache.current.set(pageNumber, txs);
-        nextPageKey.current.set(pageNumber, res?.pageKey);
-      }
-
-      const pageTxs = pageCache.current.get(pageNumber) || [];
-
-      if (append) {
-        setTransactions(prev => [...prev, ...pageTxs]);
-      } else {
-        setTransactions(pageTxs);
-        setCurrentPage(pageNumber);
-      }
-
-      setPagination({
-        pageKey: nextPageKey.current.get(pageNumber),
-        hasMore: !!nextPageKey.current.get(pageNumber),
-      });
+      // Update pageKey for next fetch
+      nextPageKeyRef.current = res?.pageKey;
+      setHasMore(!!res?.pageKey);
     } catch (error) {
       console.error('获取交易历史失败:', error);
     } finally {
-      loadingState(false);
+      setIsLoadingMore(false);
     }
   }, [address, pageSize]);
 
+  // Load more: append next page to accumulated list
   const loadMore = useCallback(() => {
-    if (pagination.hasMore && !isLoadingMore) {
-      const nextPage = currentPage + 1;
-      fetchPage(nextPage, true);
-      setCurrentPage(nextPage);
+    if (hasMore && !isLoadingMore) {
+      fetchNextPage();
     }
-  }, [pagination.hasMore, isLoadingMore, fetchPage, currentPage]);
+  }, [hasMore, isLoadingMore, fetchNextPage]);
 
+  // Go to page: show items for that page from all fetched (desktop pagination)
   const goToPage = useCallback((pageNumber: number) => {
     if (pageNumber < 1) return;
-    fetchPage(pageNumber, false);
-  }, [fetchPage]);
+    setCurrentPage(pageNumber);
+  }, []);
 
+  // Initial fetch
   useEffect(() => {
-    // reset caches when address changes
-    pageCache.current.clear();
-    nextPageKey.current.clear();
+    if (!address) return;
+    
+    setIsLoading(true);
+    setAllTransactions([]);
+    allFetchedRef.current = [];
+    nextPageKeyRef.current = undefined;
     setCurrentPage(1);
-    fetchPage(1, false);
-  }, [fetchPage, address]);
+
+    const fetchInitial = async () => {
+      try {
+        const res = await getTransfers(address as string, undefined, pageSize);
+        const txs = (res?.transfers || []).map((t: AlchemyTransfer) =>
+          normalizeTransaction(t, address as string)
+        );
+        allFetchedRef.current = txs;
+        setAllTransactions(txs);
+        nextPageKeyRef.current = res?.pageKey;
+        setHasMore(!!res?.pageKey);
+      } catch (error) {
+        console.error('获取交易历史失败:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInitial();
+  }, [address, pageSize]);
+
+  // Compute which transactions to display based on current page
+  const displayedTransactions = allTransactions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Total pages available (only count existing transactions, not future pages)
+  const totalPages = allTransactions.length > 0 ? Math.ceil(allTransactions.length / pageSize) : 1;
 
   return {
-    transactions,
+    transactions: displayedTransactions,
     isLoading,
     isLoadingMore,
-    hasMore: pagination.hasMore,
+    hasMore,
     currentPage,
-    refetch: () => fetchPage(1, false),
+    totalPages,
+    refetch: () => {
+      setIsLoading(true);
+      setAllTransactions([]);
+      allFetchedRef.current = [];
+      nextPageKeyRef.current = undefined;
+      setCurrentPage(1);
+      const fetchInitial = async () => {
+        try {
+          const res = await getTransfers(address as string, undefined, pageSize);
+          const txs = (res?.transfers || []).map((t: AlchemyTransfer) =>
+            normalizeTransaction(t, address as string)
+          );
+          allFetchedRef.current = txs;
+          setAllTransactions(txs);
+          nextPageKeyRef.current = res?.pageKey;
+          setHasMore(!!res?.pageKey);
+        } catch (error) {
+          console.error('获取交易历史失败:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchInitial();
+    },
     loadMore,
     goToPage,
-    // expose cache size for UI page buttons
-    fetchedPages: () => pageCache.current.size,
   };
 };

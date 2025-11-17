@@ -29,7 +29,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-x-hidden`}
       >
         {/* Constrain overall page width to avoid accidental horizontal overflow */}
-        <div className="w-full  mx-auto px-4">
+        <div className="w-full  mx-auto ">
           <Web3Provider>{children}</Web3Provider>
         </div>
       </body>

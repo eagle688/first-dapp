@@ -12,14 +12,14 @@ export default function TransactionList({
   onLoadMore,
   currentPage,
   goToPage,
-  fetchedPages,
+  totalPages,
 }: TransactionListProps & {
   isLoadingMore: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
   currentPage?: number;
   goToPage?: (n: number) => void;
-  fetchedPages?: () => number;
+  totalPages?: number;
 }) {
   if (isLoading && transactions.length === 0) {
     return <LoadingSkeleton />;
@@ -53,10 +53,10 @@ export default function TransactionList({
 
       {/* 分页按钮（桌面端显示页码） */}
       <div className="mt-4 flex items-center justify-center space-x-2">
-        {typeof fetchedPages === "function" && (
+        {typeof totalPages === "number" && totalPages > 1 && (
           <div className="hidden md:flex items-center space-x-1">
             {Array.from({
-              length: Math.max(1, fetchedPages() + (hasMore ? 1 : 0)),
+              length: totalPages,
             }).map((_, idx) => {
               const pageNum = idx + 1;
               const active = currentPage === pageNum;

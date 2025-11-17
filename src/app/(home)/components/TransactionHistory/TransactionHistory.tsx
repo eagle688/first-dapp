@@ -6,7 +6,17 @@ import TransactionList from "./TransactionList"; // 可以进一步拆分列表U
 export default function TransactionHistory({
   address,
 }: TransactionHistoryProps) {
-  const { transactions, isLoading, isLoadingMore, hasMore, refetch, loadMore, currentPage, goToPage, fetchedPages } = useTransactions(address, 5);
+  const {
+    transactions,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    refetch,
+    loadMore,
+    currentPage,
+    goToPage,
+    totalPages,
+  } = useTransactions(address, 5);
 
   return (
     <div className="mt-8 p-6 bg-white/5 rounded-xl border border-white/10 max-w-6xl mx-auto">
@@ -29,7 +39,7 @@ export default function TransactionHistory({
         onLoadMore={loadMore}
         currentPage={currentPage}
         goToPage={goToPage}
-        fetchedPages={fetchedPages}
+        totalPages={totalPages}
       />
     </div>
   );
