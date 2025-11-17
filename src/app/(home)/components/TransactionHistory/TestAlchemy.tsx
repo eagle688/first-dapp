@@ -10,10 +10,11 @@ export function TestAlchemy() {
       const result = await getTransfers(
         "0x123c3a13b453dd183246b3843c87b3e5578ffc02"
       );
-      setTestResult(`成功获取 ${result.transfers.length} 条交易记录`);
+      setTestResult(`成功获取 ${result?.transfers?.length ?? 0} 条交易记录`);
       console.log("Alchemy API 返回:", result);
-    } catch (error: any) {
-      setTestResult(`失败: ${error.message}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      setTestResult(`失败: ${msg}`);
     }
   };
 

@@ -26,8 +26,10 @@ export default function TransactionList({
   return (
     <div className="space-y-3">
       {/* 交易列表 */}
-      {transactions.map((tx) => (
-        <TransactionItem key={tx.hash} transaction={tx} />
+      {transactions.map((tx, i) => (
+        // use hash + index to ensure keys are unique when the same tx hash
+        // appears multiple times (e.g. multiple token transfers in one tx)
+        <TransactionItem key={`${tx.hash}-${i}`} transaction={tx} />
       ))}
 
       {/* 加载更多 */}

@@ -1,9 +1,14 @@
 // 创建这个调试组件来测试不同的查询参数
 import { useState } from "react";
+
+  type DebugResult = {
+  type: string;
+  count: number;
+  sample?: Record<string, unknown> | null;
+};
+
 export function AlchemyDebugger() {
-  const [debugResults, setDebugResults] = useState<Record<string, unknown>[]>(
-    []
-  );
+  const [debugResults, setDebugResults] = useState<DebugResult[]>([]);
   const [isTesting, setIsTesting] = useState(false);
 
   // 修改 getTransfers 函数以支持不同的查询模式
@@ -133,8 +138,8 @@ export function AlchemyDebugger() {
               </div>
               {result.sample && (
                 <div className="text-xs text-gray-400 mt-1">
-                  示例: {result.sample.hash.slice(0, 10)}... (
-                  {result.sample.category})
+                  示例: {(((result.sample as { hash?: string })?.hash) ?? "").slice(0, 10)}... (
+                  {(result.sample as { category?: string })?.category ?? ""})
                 </div>
               )}
             </div>
