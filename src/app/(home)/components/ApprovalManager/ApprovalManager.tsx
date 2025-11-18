@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTokenApprovals, type Approval } from "./useTokenApprovals";
 import { useAccount } from "wagmi";
+import { ApprovalTester } from "./ApprovalTester";
 
 export default function ApprovalManager() {
   const { address } = useAccount();
@@ -118,6 +119,11 @@ export default function ApprovalManager() {
           💡 安全提示：定期检查并撤销不必要的授权，保护资产安全
         </p>
       </div>
+
+      {/* 开发测试工具 */}
+      {process.env.NODE_ENV === "development" && approvals.length === 0 && (
+        <ApprovalTester />
+      )}
     </div>
   );
 }

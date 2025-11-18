@@ -45,8 +45,8 @@ export function buildWagmiConfig() {
         getAlchemyTransport(sepolia.id), // 优先 Alchemy（稳定不超时）
         http('https://rpc2.sepolia.org'),
         http('https://ethereum-sepolia-rpc.publicnode.com'),
-        http('https://sepolia-pokt.nodies.app'), // 新增：稳定的 Sepolia 公共 RPC
-        http('https://sep.rpc.blxrbdn.com'), // 新增：Blocknative 提供的 Sepolia RPC
+        http('https://sepolia-pokt.nodies.app'), 
+        http('https://sep.rpc.blxrbdn.com'), 
       ].filter((t): t is Transport => !!t)),
 
       [polygon.id]: fallback([
