@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { useAccount, useDisconnect } from "wagmi";
 import WalletConnect from "../../components/domains/wallet/WalletConnect";
 import WalletInfo from "./components/WalletInfo/WalletInfo";
-import ApprovalManager from "./components/ApprovalManager";
 
 export default function HomePage() {
   const { isConnected, connector } = useAccount();
@@ -66,7 +65,6 @@ export default function HomePage() {
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 md:p-10 w-full max-w-full md:max-w-3xl lg:max-w-6xl border border-white/20">
         <h1 className="text-3xl font-bold text-center mb-2">我的首个DApp1</h1>
         <p className="text-center text-gray-300 mb-8">欢迎进入Web3世界</p>
-        <ApprovalManager />
         {!isReallyConnected ? (
           <WalletConnect onConnectSuccess={handleConnectSuccess} />
         ) : (

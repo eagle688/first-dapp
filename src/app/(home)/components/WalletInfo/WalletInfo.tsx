@@ -5,6 +5,7 @@ import { USDCTransferSection, EthTransferSection } from "../TransferSection";
 import GradientButton from "../../../../components/ui/GradientButton";
 import { getUsdcAddress } from "@/constants/tokens";
 import TransactionHistory from "../TransactionHistory/TransactionHistory";
+import ApprovalManager from "../ApprovalManager";
 
 interface WalletInfoProps {
   onDisconnect: () => void;
@@ -132,6 +133,7 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
       <EthTransferSection address={address} />
       <USDCTransferSection address={address} chain={chain} />
       <TransactionHistory address={address} />
+      <ApprovalManager />
       <GradientButton
         onClick={onDisconnect}
         fromColor="from-gray-600"
