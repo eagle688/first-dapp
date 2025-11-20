@@ -1,32 +1,40 @@
 // useTransactions.ts
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { getTransfers, type AlchemyTransfer } from '@/lib/alchemy';
-import { Transaction } from './types';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { getTransfers, type AlchemyTransfer } from "@/lib/alchemy";
+import { Transaction } from "./types";
 
-export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5) => {
+export const useTransactions = (
+  address: `0x${string}` | undefined,
+  pageSize = 5
+) => {
   // Store all fetched transactions (not paginated, just accumulated)
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   // Refs to track what we've already fetched
   const nextPageKeyRef = useRef<string | undefined>(undefined);
   const allFetchedRef = useRef<Transaction[]>([]);
 
-  const normalizeTransaction = (transfer: AlchemyTransfer, currentAddress: string): Transaction => {
-    const isReceive = transfer.to.toLowerCase() === currentAddress.toLowerCase();
-    const timestamp = transfer.metadata?.blockTimestamp || new Date().toISOString();
-    
-    let tokenSymbol = 'ETH';
-    let displayValue = '0';
-    
-    if (transfer.category === 'erc20') {
-      tokenSymbol = 'USDC';
-      displayValue = transfer.value ? (transfer.value / 1e6).toString() : '0';
+  const normalizeTransaction = (
+    transfer: AlchemyTransfer,
+    currentAddress: string
+  ): Transaction => {
+    const isReceive =
+      transfer.to.toLowerCase() === currentAddress.toLowerCase();
+    const timestamp =
+      transfer.metadata?.blockTimestamp || new Date().toISOString();
+
+    let tokenSymbol = "ETH";
+    let displayValue = "0";
+
+    if (transfer.category === "erc20") {
+      tokenSymbol = "USDC";
+      displayValue = transfer.value ? (transfer.value / 1e6).toString() : "0";
     } else {
-      displayValue = transfer.value ? (transfer.value / 1e18).toString() : '0';
+      displayValue = transfer.value ? (transfer.value / 1e18).toString() : "0";
     }
 
     return {
@@ -36,9 +44,9 @@ export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5
       value: displayValue,
       tokenSymbol: tokenSymbol,
       timestamp: timestamp,
-      type: isReceive ? 'receive' : 'send',
+      type: isReceive ? "receive" : "send",
       category: transfer.category,
-      explorerUrl: `https://sepolia.etherscan.io/tx/${transfer.hash}`
+      explorerUrl: `https://sepolia.etherscan.io/tx/${transfer.hash}`,
     };
   };
 
@@ -48,7 +56,11 @@ export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5
 
     setIsLoadingMore(true);
     try {
-      const res = await getTransfers(address as string, nextPageKeyRef.current, pageSize);
+      const res = await getTransfers(
+        address as string,
+        nextPageKeyRef.current,
+        pageSize
+      );
       const newTxs = (res?.transfers || []).map((t: AlchemyTransfer) =>
         normalizeTransaction(t, address as string)
       );
@@ -61,7 +73,7 @@ export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5
       nextPageKeyRef.current = res?.pageKey;
       setHasMore(!!res?.pageKey);
     } catch (error) {
-      console.error('获取交易历史失败:', error);
+      console.error("获取交易历史失败:", error);
     } finally {
       setIsLoadingMore(false);
     }
@@ -83,7 +95,7 @@ export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5
   // Initial fetch
   useEffect(() => {
     if (!address) return;
-    
+
     setIsLoading(true);
     setAllTransactions([]);
     allFetchedRef.current = [];
@@ -101,7 +113,7 @@ export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5
         nextPageKeyRef.current = res?.pageKey;
         setHasMore(!!res?.pageKey);
       } catch (error) {
-        console.error('获取交易历史失败:', error);
+        console.error("获取交易历史失败:", error);
       } finally {
         setIsLoading(false);
       }
@@ -117,7 +129,10 @@ export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5
   );
 
   // Total pages available (only count existing transactions, not future pages)
-  const totalPages = allTransactions.length > 0 ? Math.ceil(allTransactions.length / pageSize) : 1;
+  const totalPages =
+    allTransactions.length > 0
+      ? Math.ceil(allTransactions.length / pageSize)
+      : 1;
 
   return {
     transactions: displayedTransactions,
@@ -135,7 +150,11 @@ export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5
       setCurrentPage(1);
       const fetchInitial = async () => {
         try {
-          const res = await getTransfers(address as string, undefined, pageSize);
+          const res = await getTransfers(
+            address as string,
+            undefined,
+            pageSize
+          );
           const txs = (res?.transfers || []).map((t: AlchemyTransfer) =>
             normalizeTransaction(t, address as string)
           );
@@ -144,7 +163,7 @@ export const useTransactions = (address: `0x${string}` | undefined, pageSize = 5
           nextPageKeyRef.current = res?.pageKey;
           setHasMore(!!res?.pageKey);
         } catch (error) {
-          console.error('获取交易历史失败:', error);
+          console.error("获取交易历史失败:", error);
         } finally {
           setIsLoading(false);
         }

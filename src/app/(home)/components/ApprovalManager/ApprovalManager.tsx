@@ -28,7 +28,8 @@ export default function ApprovalManager() {
 
   const formatAmount = (amount: bigint, symbol: string) => {
     // 简化显示逻辑，实际应该根据代币小数位数处理
-    return `${amount.toString()} ${symbol}`;
+    // 将wei单位转换为正常单位（USDC有6位小数）
+    return `${(Number(amount) / 1e6).toLocaleString()} ${symbol}`;
   };
 
   const getSpenderName = (address: `0x${string}`) => {

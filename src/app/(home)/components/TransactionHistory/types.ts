@@ -1,5 +1,4 @@
 // src/app/(home)/components/TransactionHistory/types.ts
- 
 
 export interface TransactionHistoryProps {
   address: `0x${string}` | undefined;
@@ -18,7 +17,7 @@ export interface Transaction {
   value: string;
   tokenSymbol: string;
   timestamp: string;
-  type: 'send' | 'receive';
+  type: "send" | "receive";
   category: string;
   explorerUrl: string;
 }

@@ -62,6 +62,9 @@ export const useTokenApprovals = (address: `0x${string}` | undefined) => {
     contracts: contractCalls,
     query: {
       enabled: contractCalls.length > 0,
+        staleTime: 10000, // 10秒后视为过期
+     gcTime: 30000,    // 30秒垃圾回收
+      refetchInterval: 15000, // 每15秒重新查询
     }
   });
 
