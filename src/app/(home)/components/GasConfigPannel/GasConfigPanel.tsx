@@ -51,7 +51,7 @@ export default function GasConfigPanel({
           }),
         ]);
 
-        const baseFee = block.baseFeePerGas;
+        const baseFee = block.baseFeePerGas ?? undefined;
         const priorityFee = feeHistory.reward?.[0]?.[1]; // 50th percentile
 
         if (isMounted) {
