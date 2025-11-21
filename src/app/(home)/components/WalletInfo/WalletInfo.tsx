@@ -2,10 +2,11 @@
 
 import { useSwitchChain, useBalance, useAccount } from "wagmi";
 import { USDCTransferSection, EthTransferSection } from "../TransferSection";
-import GradientButton from "../../../../components/ui/GradientButton";
+import GradientButton from "@/components/ui/GradientButton";
 import { getUsdcAddress } from "@/constants/tokens";
 import TransactionHistory from "../TransactionHistory/TransactionHistory";
 import ApprovalManager from "../ApprovalManager";
+import TokenBalanceList from "../TokenBalanceList/TokenBalanceList";
 
 interface WalletInfoProps {
   onDisconnect: () => void;
@@ -134,6 +135,10 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
       </div>
       <EthTransferSection address={address} />
       <USDCTransferSection address={address} chain={chain} />
+      {/* 新增的多代币余额显示 */}
+      <div className="mt-6">
+        <TokenBalanceList />
+      </div>
       <TransactionHistory address={address} />
       <ApprovalManager />
       <GradientButton
