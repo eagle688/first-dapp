@@ -1,237 +1,307 @@
-// hooks/useMultiTokenBalances.ts
-import { useState, useEffect } from "react";
-import { useAccount, useBalance, usePublicClient } from "wagmi";
-import { isAddress, getContract, formatUnits } from "viem";
+import { useState, useEffect, useCallback } from "react";
+import { useAccount, useBalance, usePublicClient, useChainId } from "wagmi";
+import { isAddress, formatUnits } from "viem";
 
-// ERC-20 标准 ABI（只需要余额查询相关函数）
-const ERC20_ABI = [
-  {
-    constant: true,
-    inputs: [],
-    name: "name",
-    outputs: [{ name: "", type: "string" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "symbol",
-    outputs: [{ name: "", type: "string" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "decimals",
-    outputs: [{ name: "", type: "uint8" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [{ name: "_owner", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ name: "balance", type: "uint256" }],
-    type: "function",
-  },
-] as const;
+// ERC20 函数签名（固定不变，直接硬编码，避免 ABI 解析问题）
+const ERC20_SIGNATURES = {
+  balanceOf: "0x70a08231", // 函数签名：balanceOf(address)
+  name: "0x06fdde03", // 函数签名：name()
+  symbol: "0x95d89b41", // 函数签名：symbol()
+  decimals: "0x313ce567", // 函数签名：decimals()
+};
 
-// TokenInfo 接口（保持 balance 为 bigint | undefined）
 export interface TokenInfo {
   address: `0x${string}`;
   name: string;
   symbol: string;
   decimals: number;
-  balance?: bigint; // 无 null 类型，避免与 undefined 冲突
+  balance?: bigint;
   balanceFormatted?: string;
   isCustom?: boolean;
 }
 
 export function useMultiTokenBalances() {
-  const { address, chain } = useAccount();
+  const { address } = useAccount();
+  const chainId = useChainId();
   const publicClient = usePublicClient();
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 1. 获取主网币余额（ETH/BNB等）
+  // 原生币余额查询（不变）
   const { data: nativeBalance } = useBalance({
     address,
-    query: { enabled: !!address },
+    chainId,
+    query: { enabled: !!address && !!chainId },
   });
 
-  // 2. 初始化常用代币列表（根据链ID）
-  const getDefaultTokens = (chainId?: number): TokenInfo[] => {
-    const baseTokens: TokenInfo[] = [];
+  // 1. 获取默认代币列表（不变）
+  const getDefaultTokens = useCallback(
+    (currentChainId?: number): TokenInfo[] => {
+      const baseTokens: TokenInfo[] = [];
 
-    // 添加主网币
-    if (nativeBalance) {
-      baseTokens.push({
-        address: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-        name: nativeBalance.name,
-        symbol: nativeBalance.symbol,
-        decimals: 18,
-        balance: nativeBalance.value,
-        balanceFormatted: nativeBalance.formatted,
-      });
-    }
-
-    // 以太坊主网（chainId=1）正确地址
-    if (chainId === 1) {
-      baseTokens.push(
-        {
-          address: "0xdAC17F958D2ee523a220620699459Aa84174" as `0x${string}`,
-          name: "Tether USD",
-          symbol: "USDT",
-          decimals: 6,
-        },
-        {
-          address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4" as `0x${string}`,
-          name: "USD Coin",
-          symbol: "USDC",
-          decimals: 6,
-        }
-      );
-    } else if (chainId === 137) {
-      // Polygon（chainId=137）正确地址
-      baseTokens.push(
-        {
-          address: "0xc2132D05D31c914a87C6611C10748AEb04B58e8" as `0x${string}`,
-          name: "Tether USD",
-          symbol: "USDT",
-          decimals: 6,
-        },
-        {
+      if (nativeBalance) {
+        baseTokens.push({
           address:
-            "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as `0x${string}`,
-          name: "USD Coin",
-          symbol: "USDC",
-          decimals: 6,
-        }
-      );
-    }
+            "0x0000000000000000000000000000000000000000" as `0x${string}`,
+          name: nativeBalance.symbol,
+          symbol: nativeBalance.symbol,
+          decimals: nativeBalance.decimals,
+          balance: nativeBalance.value,
+          balanceFormatted: nativeBalance.formatted,
+        });
+      }
 
-    return baseTokens;
-  };
-
-  // 3. 批量查询代币余额
-  const fetchTokenBalances = async (tokenList: TokenInfo[]) => {
-    if (!address || !publicClient) return tokenList;
-
-    setLoading(true);
-
-    try {
-      const updatedTokens = await Promise.all(
-        tokenList.map(async (token) => {
-          try {
-            // 如果是主网币，已经有余额信息
-            if (
-              token.address === "0x0000000000000000000000000000000000000000"
-            ) {
-              return token;
-            }
-
-            // 创建合约实例
-            const contract = getContract({
-              address: token.address,
-              abi: ERC20_ABI,
-              client: publicClient,
-            });
-
-            // 并行获取余额和代币信息
-            const [balance, name, symbol, decimals] = await Promise.all([
-              contract.read.balanceOf([address]),
-              contract.read.name().catch(() => "Unknown Token"),
-              contract.read.symbol().catch(() => "UNKNOWN"),
-              contract.read.decimals().catch(() => 18),
-            ]);
-
-            const balanceFormatted = formatUnits(
-              balance as bigint,
-              decimals as number
-            );
-
-            return {
-              ...token,
-              name: name as string,
-              symbol: symbol as string,
-              decimals: decimals as number,
-              balance: balance as bigint,
-              balanceFormatted,
-            };
-          } catch (error) {
-            // fetchTokenBalances 中错误处理时，赋值 0n（bigint 类型）
-            console.error(`Error fetching token ${token.address}:`, error);
-            return { ...token, balance: 0n, balanceFormatted: "0" }; // 正确：0n 是 bigint
+      // 预设代币（确保地址正确）
+      if (currentChainId === 1) {
+        // 以太坊主网
+        baseTokens.push(
+          {
+            address:
+              "0xdAC17F958D2ee523a2206206994597C13D831ec7" as `0x${string}`,
+            name: "Tether USD",
+            symbol: "USDT",
+            decimals: 6,
+          },
+          {
+            address:
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as `0x${string}`,
+            name: "USD Coin",
+            symbol: "USDC",
+            decimals: 6,
           }
-        })
-      );
+        );
+      } else if (currentChainId === 137) {
+        // Polygon 主网
+        baseTokens.push(
+          {
+            address:
+              "0xc2132D05D31c914a87C6611C10748AEb04B58e8" as `0x${string}`,
+            name: "Tether USD",
+            symbol: "USDT",
+            decimals: 6,
+          },
+          {
+            address:
+              "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as `0x${string}`,
+            name: "USD Coin",
+            symbol: "USDC",
+            decimals: 6,
+          }
+        );
+      }
 
-      setTokens(updatedTokens);
-      return updatedTokens;
-    } catch (error) {
-      console.error("Error fetching token balances:", error);
-      return tokenList;
-    } finally {
-      setLoading(false);
-    }
-  };
+      return baseTokens;
+    },
+    [nativeBalance]
+  );
 
-  // 4. 添加自定义代币
+  // 2. 核心：纯 JSON-RPC 调用 ERC20 方法（无依赖）
+  const fetchTokenBalances = useCallback(
+    async (tokenList: TokenInfo[]) => {
+      if (!address || !publicClient || !chainId) {
+        console.warn("Missing address/publicClient/chainId");
+        return tokenList;
+      }
+
+      setLoading(true);
+
+      try {
+        const updatedTokens = await Promise.all(
+          tokenList.map(async (token) => {
+            try {
+              // 原生币跳过
+              if (
+                token.address === "0x0000000000000000000000000000000000000000"
+              ) {
+                return token;
+              }
+
+              // 地址校验
+              if (!isAddress(token.address)) {
+                console.error(`Invalid token address: ${token.address}`);
+                return { ...token, balance: 0n, balanceFormatted: "0" };
+              }
+
+              // --------------------------
+              // 关键：手动构造 JSON-RPC 请求
+              // --------------------------
+              // 1. 查询 balanceOf（地址参数需转 64 位十六进制）
+              const balanceHex = await publicClient
+                .request({
+                  method: "eth_call",
+                  params: [
+                    {
+                      to: token.address, // 代币合约地址
+                      // data = 函数签名 + 地址参数（去掉 0x 后补 64 位）
+                      data: `${ERC20_SIGNATURES.balanceOf}${address
+                        .slice(2)
+                        .padStart(64, "0")}`,
+                    },
+                    "latest", // 最新区块
+                  ],
+                })
+                .catch(() => "0x0");
+
+              const balance = BigInt(balanceHex as string);
+
+              // 2. 查询 name（无参数，仅函数签名）
+              const nameHex = await publicClient
+                .request({
+                  method: "eth_call",
+                  params: [
+                    { to: token.address, data: ERC20_SIGNATURES.name },
+                    "latest",
+                  ],
+                })
+                .catch(() => "0x");
+
+              // 解码 name（ERC20 string 格式：前 32 字节是长度，后是内容）
+              const name =
+                nameHex !== "0x"
+                  ? Buffer.from((nameHex as string).slice(130), "hex")
+                      .toString("utf8")
+                      .trim()
+                  : "Unknown Token";
+
+              // 3. 查询 symbol（无参数）
+              const symbolHex = await publicClient
+                .request({
+                  method: "eth_call",
+                  params: [
+                    { to: token.address, data: ERC20_SIGNATURES.symbol },
+                    "latest",
+                  ],
+                })
+                .catch(() => "0x");
+
+              const symbol =
+                symbolHex !== "0x"
+                  ? Buffer.from((symbolHex as string).slice(130), "hex")
+                      .toString("utf8")
+                      .trim()
+                  : "UNKNOWN";
+
+              // 4. 查询 decimals（无参数）
+              const decimalsHex = await publicClient
+                .request({
+                  method: "eth_call",
+                  params: [
+                    { to: token.address, data: ERC20_SIGNATURES.decimals },
+                    "latest",
+                  ],
+                })
+                .catch(() => "0x12"); // 默认 18（0x12 是 18 的十六进制）
+
+              const decimals = parseInt(decimalsHex as string, 16) || 18;
+
+              // 格式化余额
+              const balanceFormatted = formatUnits(balance, decimals);
+
+              return {
+                ...token,
+                name,
+                symbol,
+                decimals,
+                balance,
+                balanceFormatted,
+              };
+            } catch (error) {
+              console.error(`Fetch token ${token.address} failed:`, error);
+              return { ...token, balance: 0n, balanceFormatted: "0" };
+            }
+          })
+        );
+
+        setTokens(updatedTokens);
+        return updatedTokens;
+      } catch (error) {
+        console.error("Fetch balances failed:", error);
+        return tokenList;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [address, publicClient, chainId, setLoading, setTokens]
+  );
+
+  // 3. 添加自定义代币（不变，复用上面的逻辑）
   const addCustomToken = async (tokenAddress: string) => {
-    if (!isAddress(tokenAddress)) {
-      throw new Error("Invalid token address");
-    }
-
-    if (!publicClient) {
-      throw new Error("Public client not available");
-    }
-
-    // 检查是否已存在
+    if (!isAddress(tokenAddress)) throw new Error("Invalid address");
+    if (!publicClient || !chainId) throw new Error("PublicClient not ready");
     if (
-      tokens.some(
-        (token) => token.address.toLowerCase() === tokenAddress.toLowerCase()
-      )
+      tokens.some((t) => t.address.toLowerCase() === tokenAddress.toLowerCase())
     ) {
       throw new Error("Token already exists");
     }
 
     try {
-      const contract = getContract({
-        address: tokenAddress as `0x${string}`,
-        abi: ERC20_ABI,
-        client: publicClient,
-      });
-
-      // 获取代币基本信息
+      // 手动查询代币信息
       const [name, symbol, decimals] = await Promise.all([
-        contract.read.name(),
-        contract.read.symbol(),
-        contract.read.decimals(),
+        publicClient
+          .request({
+            method: "eth_call",
+            params: [
+              { to: tokenAddress, data: ERC20_SIGNATURES.name },
+              "latest",
+            ],
+          })
+          .then((hex: string) =>
+            Buffer.from(hex.slice(130), "hex").toString("utf8").trim()
+          ),
+
+        publicClient
+          .request({
+            method: "eth_call",
+            params: [
+              { to: tokenAddress, data: ERC20_SIGNATURES.symbol },
+              "latest",
+            ],
+          })
+          .then((hex: string) =>
+            Buffer.from(hex.slice(130), "hex").toString("utf8").trim()
+          ),
+
+        publicClient
+          .request({
+            method: "eth_call",
+            params: [
+              { to: tokenAddress, data: ERC20_SIGNATURES.decimals },
+              "latest",
+            ],
+          })
+          .then((hex: string) => parseInt(hex, 16) || 18),
       ]);
 
       const newToken: TokenInfo = {
         address: tokenAddress as `0x${string}`,
-        name: name as string,
-        symbol: symbol as string,
-        decimals: decimals as number,
+        name,
+        symbol,
+        decimals,
         isCustom: true,
       };
 
-      // 添加到列表并获取余额
-      const updatedTokens = await fetchTokenBalances([...tokens, newToken]);
-      return updatedTokens;
+      await fetchTokenBalances([...tokens, newToken]);
+      return newToken;
     } catch (error) {
-      console.error("Error adding custom token:", error);
-      throw new Error("Failed to add token - invalid ERC20 contract");
+      console.error("Add custom token failed:", error);
+      throw new Error("Invalid ERC20 contract");
     }
   };
 
-  // 5. 初始化和更新余额
+  // 4. 初始化和链切换时刷新
   useEffect(() => {
-    if (address && chain && publicClient) {
-      const defaultTokens = getDefaultTokens(chain.id);
+    if (address && chainId && publicClient) {
+      const defaultTokens = getDefaultTokens(chainId);
       fetchTokenBalances(defaultTokens);
     }
-  }, [address, chain, publicClient, nativeBalance]);
+  }, [
+    address,
+    chainId,
+    publicClient,
+    nativeBalance,
+    getDefaultTokens,
+    fetchTokenBalances,
+  ]);
 
   return {
     tokens,

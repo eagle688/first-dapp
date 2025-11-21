@@ -21,7 +21,6 @@ export function buildWagmiConfig() {
     return http(`https://${alchemyChain}.g.alchemy.com/v2/${ALCHEMY_KEY}`, {
       timeout: 10000,
       retryCount: 0,
-      cacheTime: 5000,
     });
   };
 
