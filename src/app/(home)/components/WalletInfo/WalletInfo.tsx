@@ -18,10 +18,11 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
   const { data: balanceData, isLoading: balanceLoading } = useBalance({
     address,
     query: {
-      staleTime: 0, // 立即视为过期
-      gcTime: 0, // 立即垃圾回收
+      staleTime: 100000, // 立即视为过期
+      gcTime: 6000000, // 立即垃圾回收
       refetchOnMount: true,
       refetchOnWindowFocus: true,
+      enabled: !!address, // 嵌套在 query 中
     },
   });
 
@@ -31,10 +32,11 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
     address,
     token: usdcAddress,
     query: {
-      staleTime: 0, // 立即视为过期
-      gcTime: 0, // 立即垃圾回收
+      staleTime: 100000, // 立即视为过期
+      gcTime: 600000, // 立即垃圾回收
       refetchOnMount: true,
       refetchOnWindowFocus: true,
+      enabled: !!address, // 嵌套在 query 中
     },
   });
 

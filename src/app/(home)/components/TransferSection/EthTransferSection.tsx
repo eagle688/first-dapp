@@ -8,6 +8,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query"; // 正确的导入
 import { parseEther } from "viem";
 import GradientButton from "../../../../components/ui/GradientButton";
+import GasConfigPanel from "../GasConfigPannel";
 
 interface EthTransferSectionProps {
   address: `0x${string}` | undefined;
@@ -18,6 +19,7 @@ export default function EthTransferSection({
 }: EthTransferSectionProps) {
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
+  const [gasConfig, setGasConfig] = useState({});
   const queryClient = useQueryClient();
 
   // 修复 useBalance 的 enabled 配置
@@ -80,6 +82,7 @@ export default function EthTransferSection({
     sendTransaction({
       to: recipient as `0x${string}`,
       value: amountInWei,
+      ...gasConfig, // 合并 Gas 配置
     });
   };
 
@@ -122,6 +125,13 @@ export default function EthTransferSection({
           className="w-full p-2 rounded bg-black/20 border border-white/20 text-white placeholder-gray-400"
           disabled={isConfirming} // 交易中禁止修改
         />
+
+        {/* 集成 Gas 配置面板 */}
+        <GasConfigPanel
+          onConfigChange={setGasConfig}
+          defaultGasLimit={21000n} // ETH 转账的标准 Gas Limit
+        />
+
         <GradientButton
           onClick={handleSend}
           fromColor="from-purple-500"

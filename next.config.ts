@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 // next.config.js
-const nextConfig:NextConfig = {
+const nextConfig: NextConfig = {
   reactStrictMode: true,
   // 关键：手动暴露环境变量给客户端
   env: {
