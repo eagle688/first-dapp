@@ -171,44 +171,42 @@ export default function GasConfigPanel({
     onConfigChange(config);
   };
 
-  const currentTierPrice = calculateTierPrice(
-    selectedTier,
-    gasData.baseFee,
-    gasData.priorityFee
-  );
+  // console.log(selectedTier, gasData.baseFee, gasData.priorityFee);
 
   return (
     <div className="mt-4 p-3 bg-black/20 rounded border border-white/10">
       <h4 className="text-sm font-medium mb-3">⚙️ Gas 设置</h4>
 
       <div className="flex gap-2 mb-3">
-        {(["slow", "standard", "fast"] as const).map((tier) => (
-          <button
-            key={tier}
-            onClick={() =>
-              updateGasTier(tier, gasData.baseFee, gasData.priorityFee)
-            }
-            className={`flex-1 py-1 px-2 text-xs rounded ${
-              selectedTier === tier && !customGasPrice
-                ? "bg-blue-500 text-white"
-                : "bg-white/10 hover:bg-white/20"
-            }`}
-          >
-            {tier === "slow" ? "慢" : tier === "standard" ? "标准" : "快"}
-            {currentTierPrice && !customGasPrice && (
-              <div className="text-xs opacity-75">
-                {formatGwei(
-                  tier === "slow"
-                    ? (currentTierPrice.maxFeePerGas! * 90n) / 100n
-                    : tier === "fast"
-                    ? (currentTierPrice.maxFeePerGas! * 120n) / 100n
-                    : currentTierPrice.maxFeePerGas!
-                )}{" "}
-                Gwei
-              </div>
-            )}
-          </button>
-        ))}
+        {(["slow", "standard", "fast"] as const).map((tier) => {
+          // 为每个档位单独计算价格
+          const tierPrice = calculateTierPrice(
+            tier,
+            gasData.baseFee,
+            gasData.priorityFee
+          );
+
+          return (
+            <button
+              key={tier}
+              onClick={() =>
+                updateGasTier(tier, gasData.baseFee, gasData.priorityFee)
+              }
+              className={`flex-1 py-1 px-2 text-xs rounded ${
+                selectedTier === tier && !customGasPrice
+                  ? "bg-blue-500 text-white"
+                  : "bg-white/10 hover:bg-white/20"
+              }`}
+            >
+              {tier === "slow" ? "慢" : tier === "standard" ? "标准" : "快"}
+              {tierPrice && !customGasPrice && (
+                <div className="text-xs opacity-75">
+                  {formatGwei(tierPrice.maxFeePerGas!)} Gwei
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <div className="space-y-2">
