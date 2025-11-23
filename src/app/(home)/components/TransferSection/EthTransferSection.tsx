@@ -4,11 +4,13 @@ import {
   useSendTransaction,
   useWaitForTransactionReceipt,
   useBalance,
+  useBlockNumber, // 新增：用于交易确认进度
 } from "wagmi";
-import { useQueryClient } from "@tanstack/react-query"; // 正确的导入
+import { useQueryClient } from "@tanstack/react-query";
 import { parseEther } from "viem";
-import GradientButton from "../../../../components/ui/GradientButton";
+import GradientButton from "@/components/ui/GradientButton";
 import GasConfigPanel from "../GasConfigPannel";
+import TransactionStatus from "@/components/domains/transactionStatus"; // 使用新的状态组件
 
 interface EthTransferSectionProps {
   address: `0x${string}` | undefined;
@@ -20,14 +22,15 @@ export default function EthTransferSection({
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
   const [gasConfig, setGasConfig] = useState({});
+  const [transactionError, setTransactionError] = useState<unknown>(null); // 新增：错误状态
   const queryClient = useQueryClient();
 
-  // 修复 useBalance 的 enabled 配置
+  // 新增：监听区块高度，用于显示确认进度
+  const { data: currentBlock } = useBlockNumber({ watch: true });
+
   const { data: balanceData } = useBalance({
     address,
-    query: {
-      enabled: !!address, // 嵌套在 query 中
-    },
+    query: { enabled: !!address },
   });
   const userBalanceWei = balanceData?.value || 0n;
 
@@ -35,47 +38,64 @@ export default function EthTransferSection({
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
       hash,
-      query: {
-        enabled: !!hash, // 该钩子支持顶层 enabled，无需修改
-      },
+      query: { enabled: !!hash },
     });
 
   // 金额输入处理（不变）
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // 支持以小数点开头（例如 .5），小数部分最多 18 位
     const regex = /^(?:\d+|\d*\.\d{0,18})$/;
     if (regex.test(value) || value === "") {
       setSendAmount(value);
     }
   };
 
-  const handleSend = () => {
-    // 基础校验：非空
-    if (!sendAmount || !recipient) return alert("请填写完整信息");
+  // 错误处理 Effect：捕获 sendTransaction 的错误
+  useEffect(() => {
+    if (isError && error) {
+      setTransactionError(error);
+    }
+  }, [isError, error]);
 
-    // 地址校验（保留原逻辑）
+  const handleSend = () => {
+    // 重置错误状态
+    setTransactionError(null);
+
+    // 基础校验：非空
+    if (!sendAmount || !recipient) {
+      setTransactionError(new Error("请填写接收地址和转账金额"));
+      return;
+    }
+
+    // 地址校验
     if (!recipient.startsWith("0x") || recipient.length !== 42) {
-      return alert("请输入有效的以太坊地址");
+      setTransactionError(
+        new Error("请输入有效的以太坊地址（0x开头，42位长度）")
+      );
+      return;
     }
 
     // 金额合法性校验
     if (parseFloat(sendAmount) <= 0) {
-      return alert("请输入大于 0 的金额");
+      setTransactionError(new Error("请输入大于 0 的金额"));
+      return;
     }
 
-    // 4. 安全转换金额：用 parseEther 避免精度问题
+    // 安全转换金额
     let amountInWei: bigint;
     try {
-      amountInWei = parseEther(sendAmount); // 直接将 ETH 字符串转为 wei（BigInt）
+      amountInWei = parseEther(sendAmount);
     } catch (err) {
-      console.error("parseEther error:", err);
-      return alert("金额格式错误，请输入合法数字");
+      setTransactionError(new Error("金额格式错误，请输入合法数字"));
+      return;
     }
 
-    // 5. 余额不足校验
+    // 余额不足校验
     if (amountInWei > userBalanceWei) {
-      return alert(`余额不足！当前余额：${balanceData?.formatted || 0} ETH`);
+      setTransactionError(
+        new Error(`余额不足！当前余额：${balanceData?.formatted || 0} ETH`)
+      );
+      return;
     }
 
     // 发起交易
@@ -90,9 +110,10 @@ export default function EthTransferSection({
   useEffect(() => {
     if (isConfirmed) {
       console.log("ETH转账成功，刷新余额");
+      // 重置错误状态
+      setTransactionError(null);
       // 仅刷新当前 address 的余额缓存
       queryClient.invalidateQueries({ queryKey: ["balance", address] });
-      // 立即重新获取（确保 UI 及时更新）
       queryClient.refetchQueries({ queryKey: ["balance", address] });
       setSendAmount("");
       setRecipient("");
@@ -115,21 +136,31 @@ export default function EthTransferSection({
           value={recipient}
           onChange={(e) => setRecipient(e.target.value)}
           className="w-full p-2 rounded bg-black/20 border border-white/20 text-white placeholder-gray-400"
-          disabled={isConfirming} // 交易中禁止修改
+          disabled={isConfirming}
         />
         <input
-          type="text" // 改为 text 类型，配合 regex 精确控制输入
+          type="text"
           placeholder="转账金额 (ETH，最多 18 位小数)"
           value={sendAmount}
           onChange={handleAmountChange}
           className="w-full p-2 rounded bg-black/20 border border-white/20 text-white placeholder-gray-400"
-          disabled={isConfirming} // 交易中禁止修改
+          disabled={isConfirming}
         />
 
         {/* 集成 Gas 配置面板 */}
         <GasConfigPanel
           onConfigChange={setGasConfig}
-          defaultGasLimit={21000n} // ETH 转账的标准 Gas Limit
+          defaultGasLimit={21000n}
+        />
+
+        {/* 替换原来的简单状态提示 -> 使用新的精细化 TransactionStatus 组件 */}
+        <TransactionStatus
+          error={transactionError}
+          isConfirming={isConfirming}
+          isConfirmed={isConfirmed}
+          hash={hash}
+          currentBlock={currentBlock ? Number(currentBlock) : 1}
+          confirmations={1} // 可以根据需要调整确认数
         />
 
         <GradientButton
@@ -140,19 +171,6 @@ export default function EthTransferSection({
         >
           {isConfirming ? "确认中..." : "发送 ETH"}
         </GradientButton>
-        {/* 交易状态提示 */}
-        {isConfirming && (
-          <p className="text-blue-400 text-sm">🔄 交易处理中... 请在钱包确认</p>
-        )}
-        {isConfirmed && (
-          <p className="text-green-400 text-sm">✅ ETH 转账成功！</p>
-        )}
-        {/* 交易失败提示 */}
-        {isError && (
-          <p className="text-red-400 text-sm">
-            ❌ 交易失败：{error instanceof Error ? error.message : "未知错误"}
-          </p>
-        )}
       </div>
     </div>
   );
