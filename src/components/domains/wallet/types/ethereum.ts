@@ -1,13 +1,19 @@
-// types/ethereum.ts
+// types/ethereum.ts - 确保类型完整
 export interface EthereumProvider {
   isMetaMask?: boolean;
   isOKExWallet?: boolean;
   isCoinbaseWallet?: boolean;
   isTokenPocket?: boolean;
   isTrust?: boolean;
-  request?: <T = unknown>(args: { method: string; params?: unknown[] }) => Promise<T>;
+  request?: <T = unknown>(args: {
+    method: string;
+    params?: unknown[];
+  }) => Promise<T>;
   on: (event: string, listener: (...args: unknown[]) => void) => void;
-  removeListener: (event: string, listener: (...args: unknown[]) => void) => void;
+  removeListener: (
+    event: string,
+    listener: (...args: unknown[]) => void
+  ) => void;
   accounts?: string[];
   chainId?: string;
   providers?: EthereumProvider[];
