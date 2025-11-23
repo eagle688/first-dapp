@@ -7,6 +7,7 @@ import { getUsdcAddress } from "@/constants/tokens";
 import TransactionHistory from "../TransactionHistory/TransactionHistory";
 import ApprovalManager from "../ApprovalManager";
 import TokenBalanceList from "../TokenBalanceList/TokenBalanceList";
+import { formatBalance } from "@/utils/balanceFormatter";
 
 interface WalletInfoProps {
   onDisconnect: () => void;
@@ -120,14 +121,18 @@ export default function WalletInfo({ onDisconnect }: WalletInfoProps) {
           <p className="font-semibold">
             {chain?.nativeCurrency?.symbol || "ETH"} 余额:{" "}
             {balanceData
-              ? `${balanceData.formatted} ${balanceData.symbol}`
+              ? `${formatBalance(balanceData, {
+                  maximumFractionDigits: 6,
+                })} ${balanceData.symbol}`
               : "加载中..."}
           </p>
           {chain?.id === 11155111 && ( // Sepolia chain ID
             <p>
               USDC 余额:{" "}
               {usdcBalanceData
-                ? `${usdcBalanceData.formatted} ${usdcBalanceData.symbol}`
+                ? `${formatBalance(usdcBalanceData, {
+                    maximumFractionDigits: 2,
+                  })} ${usdcBalanceData.symbol}`
                 : "加载中..."}
             </p>
           )}

@@ -84,16 +84,20 @@ export function buildWagmiConfig() {
     ),
 
     // Sepolia 测试网
+
     [sepolia.id]: fallback(
       [
-        getAlchemyTransport(sepolia.id),
-        http("https://rpc2.sepolia.org", { timeout: 6000 }),
-        http("https://ethereum-sepolia-rpc.publicnode.com", { timeout: 8000 }),
-        http("https://1rpc.io/sepolia", { timeout: 6000 }),
+        getAlchemyTransport(sepolia.id), // Alchemy（推荐，稳定且支持CORS）
+        http("https://sepolia.gateway.tenderly.co"), // Tenderly（支持CORS）
+        http("https://ethereum-sepolia-rpc.publicnode.com"), // PublicNode（支持CORS）
+        http("https://rpc.sepolia.org", {
+          timeout: 8000,
+          retryCount: 1,
+        }), // 备用
       ].filter((t): t is Transport => !!t),
       {
         retryCount: 1,
-        rank: true,
+        rank: false,
       }
     ),
 
