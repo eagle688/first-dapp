@@ -6,6 +6,7 @@ import { metaMask, injected, walletConnect } from "wagmi/connectors";
 import { DetectedWallet } from "../types/wallet";
 import { useOtherWalletConnection } from "../hooks/useOtherWalletConnection";
 import GradientButton from "@/components/ui/GradientButton";
+import { useSafeWalletConnect } from "../hooks/useSafeWalletConnect";
 
 interface WalletListProps {
   detectedWallets: DetectedWallet[];
@@ -30,6 +31,23 @@ export default function WalletList({
   );
   const isConnecting = connecting || otherWalletConnecting;
 
+  const { safeConnectWalletConnect } = useSafeWalletConnect();
+
+  const handleConnectWalletConnect = async () => {
+    setConnecting(true);
+    try {
+      await safeConnectWalletConnect(onConnectSuccess);
+    } catch (error) {
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert("未知错误发生");
+      }
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const handleConnectMetaMask = async () => {
     setConnecting(true);
     try {
@@ -47,20 +65,6 @@ export default function WalletList({
             : err.message
           : "未知错误";
       alert(`MetaMask 连接失败: ${msg}`);
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleConnectWalletConnect = async () => {
-    setConnecting(true);
-    try {
-      await connect({ connector: walletConnect() });
-      onConnectSuccess();
-    } catch (err) {
-      console.error("WalletConnect 连接错误:", err);
-      const msg = err instanceof Error ? err.message : "未知错误";
-      alert(`WalletConnect 连接失败: ${msg}`);
     } finally {
       setConnecting(false);
     }
@@ -93,7 +97,6 @@ export default function WalletList({
         WalletConnect
         {isConnecting && " (连接中...)"}
       </GradientButton>
-
       {/* 其他钱包展开按钮 - 现在功能完整了 */}
       <div>
         <button
