@@ -1,8 +1,11 @@
+// wagmi.ts - 在您现有文件基础上修改
 import { createConfig, fallback, http, Transport } from "wagmi";
-import { sepolia, polygon, mainnet } from "wagmi/chains";
-import { metaMask, injected } from "wagmi/connectors";
+import { sepolia, polygon, mainnet, bsc, arbitrum } from "wagmi/chains";
+import { metaMask, injected, walletConnect } from "wagmi/connectors";
 
 const ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || "";
+const WALLETCONNECT_PROJECT_ID =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
 export function buildWagmiConfig() {
   const getAlchemyTransport = (chainId: number): Transport | undefined => {
@@ -12,12 +15,12 @@ export function buildWagmiConfig() {
       [mainnet.id]: "eth-mainnet",
       [sepolia.id]: "eth-sepolia",
       [polygon.id]: "polygon-mainnet",
+      [arbitrum.id]: "arb-mainnet",
     };
 
     const alchemyChain = chainMap[chainId as keyof typeof chainMap];
     if (!alchemyChain) return undefined;
 
-    // 使用新的 g.alchemy.com 域名
     return http(`https://${alchemyChain}.g.alchemy.com/v2/${ALCHEMY_KEY}`, {
       timeout: 10000,
       retryCount: 0,
@@ -25,15 +28,34 @@ export function buildWagmiConfig() {
   };
 
   return createConfig({
-    chains: [mainnet, sepolia, polygon],
+    // 扩展支持的链
+    chains: [mainnet, sepolia, polygon, bsc, arbitrum],
     connectors: [
       metaMask({
         dappMetadata: {
           name: "My DApp",
-          url: "http://localhost:3000",
+          url:
+            typeof window !== "undefined"
+              ? window.location.origin
+              : "http://localhost:3000",
         },
         enableAnalytics: false,
       }),
+      // 新增 WalletConnect 连接器
+      ...(WALLETCONNECT_PROJECT_ID
+        ? [
+            walletConnect({
+              projectId: WALLETCONNECT_PROJECT_ID,
+              showQrModal: true,
+              qrModalOptions: {
+                themeVariables: {
+                  "--wcm-accent-color": "#7c3aed",
+                  "--wcm-background-color": "#1f2937",
+                },
+              },
+            }),
+          ]
+        : []),
       injected(),
     ],
     transports: {
@@ -47,10 +69,9 @@ export function buildWagmiConfig() {
         ].filter((t): t is Transport => !!t)
       ),
 
-      // 关键修改：替换 sepolia.drpc.org 为稳定的公共 RPC
       [sepolia.id]: fallback(
         [
-          getAlchemyTransport(sepolia.id), // 优先 Alchemy（稳定不超时）
+          getAlchemyTransport(sepolia.id),
           http("https://1rpc.io/sepolia", {
             timeout: 6000,
             retryCount: 0,
@@ -61,7 +82,7 @@ export function buildWagmiConfig() {
           }),
         ].filter((t): t is Transport => !!t),
         {
-          retryCount: 0, // 减少重试次数
+          retryCount: 0,
           rank: false,
         }
       ),
@@ -70,6 +91,24 @@ export function buildWagmiConfig() {
         [
           getAlchemyTransport(polygon.id),
           http("https://polygon-rpc.com"),
+        ].filter((t): t is Transport => !!t)
+      ),
+
+      // 新增 BSC 链配置
+      [bsc.id]: fallback(
+        [
+          http("https://bsc-dataseed.binance.org"),
+          http("https://bsc-dataseed1.defibit.io"),
+          http("https://bsc-dataseed1.ninicoin.io"),
+        ].filter((t): t is Transport => !!t)
+      ),
+
+      // 新增 Arbitrum 链配置
+      [arbitrum.id]: fallback(
+        [
+          getAlchemyTransport(arbitrum.id),
+          http("https://arb1.arbitrum.io/rpc"),
+          http("https://endpoints.omniatech.io/v1/arbitrum/one/public"),
         ].filter((t): t is Transport => !!t)
       ),
     },
