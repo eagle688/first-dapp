@@ -1,1 +1,1 @@
-export { defautl } from "./TokenBalanceList";
+export { default } from "./TokenBalanceList";

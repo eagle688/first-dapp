@@ -1,0 +1,46 @@
+// hooks/useThemePreference.ts
+import { useLocalStorage } from "./useLocalStorage";
+
+export type Theme = "dark" | "light" | "auto";
+
+/**
+ * 主题偏好 Hook
+ * 缓存用户的主题选择
+ */
+export function useThemePreference() {
+  const [theme, setTheme] = useLocalStorage<Theme>("theme-preference", "dark");
+
+  // 根据主题设置应用到 document
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const root = window.document.documentElement;
+
+    // 移除所有主题类
+    root.classList.remove("light", "dark");
+
+    // 设置当前主题
+    if (theme === "auto") {
+      // 根据系统偏好设置
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+        .matches
+        ? "dark"
+        : "light";
+      root.classList.add(systemTheme);
+    } else {
+      root.classList.add(theme);
+    }
+  }, [theme]);
+
+  return {
+    theme,
+    setTheme,
+    toggleTheme: () => {
+      setTheme((current) => {
+        if (current === "dark") return "light";
+        if (current === "light") return "auto";
+        return "dark";
+      });
+    },
+  };
+}
