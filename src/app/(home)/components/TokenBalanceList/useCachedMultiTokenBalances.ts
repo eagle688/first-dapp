@@ -1,5 +1,5 @@
 // hooks/useCachedMultiTokenBalances.ts
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useAccount, usePublicClient, useChainId } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAddress, formatUnits } from "viem";

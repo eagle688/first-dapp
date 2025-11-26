@@ -82,7 +82,7 @@ export default function ApprovalManager() {
         </div>
       ) : (
         <div className="space-y-3">
-          {approvals.map((approval, index) => {
+          {approvals.map((approval) => {
             const key = `${approval.tokenAddress}-${approval.spender}`;
             return (
               <div

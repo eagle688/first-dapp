@@ -85,7 +85,7 @@ export default function EthTransferSection({
     let amountInWei: bigint;
     try {
       amountInWei = parseEther(sendAmount);
-    } catch (err) {
+    } catch {
       setTransactionError(new Error("金额格式错误，请输入合法数字"));
       return;
     }

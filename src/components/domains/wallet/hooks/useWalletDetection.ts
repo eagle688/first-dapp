@@ -1,16 +1,16 @@
 // hooks/useWalletDetection.ts
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { DetectedWallet } from "../types/wallet";
 import { EthereumProvider, WindowWithWallets } from "../types/ethereum";
 
-const win =
-  typeof window !== "undefined" ? (window as WindowWithWallets) : undefined;
-
 export function useWalletDetection() {
-  const [detectedWallets, setDetectedWallets] = useState<DetectedWallet[]>([]);
+  const detectedWallets = useMemo(() => {
+    const win =
+      typeof window !== "undefined" ? (window as WindowWithWallets) : undefined;
 
-  useEffect(() => {
-    if (!win) return;
+    if (!win) {
+      return [];
+    }
 
     const wallets: DetectedWallet[] = [];
     const { ethereum } = win;
@@ -34,7 +34,7 @@ export function useWalletDetection() {
     if (win.trustwallet) allProviders.push(win.trustwallet);
     if (win.bitkeep) allProviders.push(win.bitkeep);
 
-    // 钱包类型检测逻辑（保持您现有的）
+    // 钱包类型检测逻辑（保持您现有的逻辑）
     allProviders.forEach((provider) => {
       if (provider.isMetaMask && !wallets.some((w) => w.type === "metamask")) {
         wallets.push({
@@ -79,7 +79,7 @@ export function useWalletDetection() {
       });
     }
 
-    setDetectedWallets(wallets);
+    return wallets;
   }, []);
 
   return { detectedWallets };

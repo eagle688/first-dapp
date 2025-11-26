@@ -1,5 +1,5 @@
 // hooks/useLocalStorage.ts
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 /**
  * 本地存储的 Hook

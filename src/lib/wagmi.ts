@@ -1,7 +1,7 @@
 // wagmi.ts - 完整配置
 import { createConfig, fallback, http, Transport } from "wagmi";
 import { sepolia, polygon, mainnet, bsc, arbitrum } from "wagmi/chains";
-import { metaMask, injected, walletConnect } from "wagmi/connectors";
+import { metaMask, injected } from "wagmi/connectors";
 import { createWalletConnectConnector } from "./walletConnectFix";
 
 const ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || "";

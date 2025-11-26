@@ -1,8 +1,10 @@
 // GasConfigPanel.tsx - 最终优化版
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePublicClient } from "wagmi";
 import { formatGwei, parseGwei } from "viem";
+
+type GasTier = "slow" | "standard" | "fast";
 
 interface GasConfig {
   gasPrice?: bigint;
@@ -16,6 +18,29 @@ interface GasConfigPanelProps {
   defaultGasLimit?: bigint;
 }
 
+const calculateTierPrice = (
+  tier: GasTier,
+  baseFee?: bigint,
+  priorityFee?: bigint
+) => {
+  if (!baseFee || !priorityFee) return null;
+
+  const multipliers = {
+    slow: { base: 90n, priority: 80n },
+    standard: { base: 100n, priority: 100n },
+    fast: { base: 120n, priority: 150n },
+  } satisfies Record<GasTier, { base: bigint; priority: bigint }>;
+
+  const mult = multipliers[tier];
+  const adjustedBaseFee = (baseFee * mult.base) / 100n;
+  const adjustedPriorityFee = (priorityFee * mult.priority) / 100n;
+
+  return {
+    maxFeePerGas: adjustedBaseFee + adjustedPriorityFee,
+    maxPriorityFeePerGas: adjustedPriorityFee,
+  };
+};
+
 export default function GasConfigPanel({
   onConfigChange,
   defaultGasLimit,
@@ -25,12 +50,30 @@ export default function GasConfigPanel({
     baseFee?: bigint;
     priorityFee?: bigint;
   }>({});
-  const [selectedTier, setSelectedTier] = useState<
-    "standard" | "slow" | "fast"
-  >("standard");
+  const [selectedTier, setSelectedTier] = useState<GasTier>("standard");
   const [customGasPrice, setCustomGasPrice] = useState("");
   const [customGasLimit, setCustomGasLimit] = useState(
     defaultGasLimit?.toString() || ""
+  );
+
+  const updateGasTier = useCallback(
+    (tier: GasTier, baseFee?: bigint, priorityFee?: bigint) => {
+    if (!baseFee || !priorityFee) return;
+
+    const tierConfig = calculateTierPrice(tier, baseFee, priorityFee);
+    if (!tierConfig) return;
+
+    const gasLimit = customGasLimit ? BigInt(customGasLimit) : defaultGasLimit;
+
+    onConfigChange({
+      ...tierConfig,
+      gasLimit,
+    });
+
+    setSelectedTier(tier);
+    setCustomGasPrice("");
+    },
+    [customGasLimit, defaultGasLimit, onConfigChange]
   );
 
   // 获取实时 Gas 数据（优化版：30 秒刷新 + 严格卸载清理）
@@ -63,64 +106,16 @@ export default function GasConfigPanel({
       }
     };
 
-    // 仅在客户端存在时执行
     if (publicClient) {
-      fetchGasData(); // 挂载时执行一次
-      intervalId = setInterval(fetchGasData, 30000); // 30 秒刷新（降低频率）
+      fetchGasData();
+      intervalId = setInterval(fetchGasData, 30000);
     }
 
-    // 组件卸载时彻底清理（避免内存泄漏）
     return () => {
       isMounted = false;
       if (intervalId) clearInterval(intervalId);
     };
-  }, [publicClient, onConfigChange, defaultGasLimit]); // 仅依赖必要参数
-
-  // 计算三档 Gas 价格（不变）
-  const calculateTierPrice = (
-    tier: "slow" | "standard" | "fast",
-    baseFee?: bigint,
-    priorityFee?: bigint
-  ) => {
-    if (!baseFee || !priorityFee) return null;
-
-    const multipliers = {
-      slow: { base: 90n, priority: 80n },
-      standard: { base: 100n, priority: 100n },
-      fast: { base: 120n, priority: 150n },
-    };
-
-    const mult = multipliers[tier];
-    const adjustedBaseFee = (baseFee * mult.base) / 100n;
-    const adjustedPriorityFee = (priorityFee * mult.priority) / 100n;
-
-    return {
-      maxFeePerGas: adjustedBaseFee + adjustedPriorityFee,
-      maxPriorityFeePerGas: adjustedPriorityFee,
-    };
-  };
-
-  // 更新档位（不变）
-  const updateGasTier = (
-    tier: "slow" | "standard" | "fast",
-    baseFee?: bigint,
-    priorityFee?: bigint
-  ) => {
-    if (!baseFee || !priorityFee) return;
-
-    const tierConfig = calculateTierPrice(tier, baseFee, priorityFee);
-    if (!tierConfig) return;
-
-    const gasLimit = customGasLimit ? BigInt(customGasLimit) : defaultGasLimit;
-
-    onConfigChange({
-      ...tierConfig,
-      gasLimit,
-    });
-
-    setSelectedTier(tier);
-    setCustomGasPrice("");
-  };
+  }, [publicClient, updateGasTier]);
 
   // 处理自定义 Gas 价格（不变）
   const handleCustomGasPriceChange = (value: string) => {

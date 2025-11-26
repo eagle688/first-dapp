@@ -2,7 +2,7 @@
 "use client";
 import { useState } from "react";
 import { useConnect, useAccount, useDisconnect } from "wagmi";
-import { metaMask, injected, walletConnect } from "wagmi/connectors";
+import { metaMask } from "wagmi/connectors";
 import { DetectedWallet } from "../types/wallet";
 import { useOtherWalletConnection } from "../hooks/useOtherWalletConnection";
 import GradientButton from "@/components/ui/GradientButton";
