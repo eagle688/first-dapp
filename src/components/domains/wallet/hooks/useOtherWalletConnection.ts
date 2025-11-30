@@ -1,6 +1,6 @@
 // hooks/useOtherWalletConnection.ts
 import { useState } from "react";
-import { useConnect, useAccount, useDisconnect } from "wagmi";
+import { useConnect, useConnection, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { DetectedWallet } from "../types/wallet";
 import { EthereumProvider, WindowWithWallets } from "../types/ethereum";
@@ -45,7 +45,7 @@ const completeProvider = (
 
 export function useOtherWalletConnection(onConnectSuccess: () => void) {
   const { connect } = useConnect();
-  const { address: currentAddress } = useAccount();
+  const { address: currentAddress } = useConnection();
   const { disconnect } = useDisconnect();
   const [connecting, setConnecting] = useState(false);
 
