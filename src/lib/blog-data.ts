@@ -11,7 +11,7 @@ export interface BlogPost {
   tags: string[];
 }
 
-// 移除所有异步和延迟，使用同步数据
+// 模拟数据库数据
 const mockBlogPosts: BlogPost[] = [
   {
     id: "1",
@@ -53,17 +53,63 @@ const mockBlogPosts: BlogPost[] = [
     publishedAt: "2024-01-10",
     tags: ["Next.js", "SSR", "性能优化"],
   },
+  {
+    id: "3",
+    slug: "web3-performance-optimization",
+    title: "Web3应用性能优化实战",
+    excerpt: "从链下缓存到CDN加速，全面优化Web3应用性能。",
+    content: `这是一篇关于Web3应用性能优化的完整文章内容。
+
+## 链下缓存策略
+使用Redis缓存频繁访问的链上数据。
+
+## CDN加速
+静态资源通过CDN分发提升全球访问速度。
+
+## 数据库优化
+合理的索引设计和查询优化。`,
+    coverImage: "/images/web3-performance.jpg",
+    author: "0x742d35Cc6634C0532925a3b8D",
+    publishedAt: "2024-01-08",
+    tags: ["Web3", "性能优化", "缓存"],
+  },
 ];
 
-// 同步函数，移除异步
-export function getBlogPosts(): BlogPost[] {
-  return mockBlogPosts;
+// 模拟网络延迟
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// 异步获取所有博客文章
+export async function getBlogPosts(): Promise<BlogPost[]> {
+  console.log("🔍 获取博客列表...");
+  await delay(150); // 模拟网络请求延迟
+  return [...mockBlogPosts]; // 返回副本避免污染
 }
 
-export function getBlogPost(slug: string): BlogPost | null {
-  return mockBlogPosts.find((post) => post.slug === slug) || null;
+// 异步根据slug获取单篇文章
+export async function getBlogPost(slug: string): Promise<BlogPost | null> {
+  console.log(`🔍 获取文章详情: ${slug}`);
+  await delay(100); // 模拟网络请求延迟
+
+  const post = mockBlogPosts.find((post) => post.slug === slug);
+  if (!post) {
+    console.warn(`❌ 文章未找到: ${slug}`);
+    return null;
+  }
+
+  console.log(`✅ 找到文章: ${post.title}`);
+  return { ...post }; // 返回副本
 }
 
-export function getPopularPosts(): BlogPost[] {
-  return mockBlogPosts.slice(0, 3);
+// 异步获取热门文章
+export async function getPopularPosts(): Promise<BlogPost[]> {
+  console.log("🔥 获取热门文章...");
+  await delay(120);
+  return mockBlogPosts.slice(0, 2); // 返回前2篇作为热门
+}
+
+// 异步根据标签筛选文章
+export async function getPostsByTag(tag: string): Promise<BlogPost[]> {
+  console.log(`🏷️ 根据标签筛选: ${tag}`);
+  await delay(100);
+  return mockBlogPosts.filter((post) => post.tags.includes(tag));
 }

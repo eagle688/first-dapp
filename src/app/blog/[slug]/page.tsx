@@ -1,5 +1,6 @@
-// app/blog/[slug]/page.tsx - 添加ISR和性能优化
+// app/blog/[slug]/page.tsx
 import { getBlogPost, getPopularPosts } from "@/lib/blog-data";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 
 interface BlogPostProps {
@@ -8,20 +9,18 @@ interface BlogPostProps {
   }>;
 }
 
-// 配置增量静态再生 - 每10分钟重新生成页面
-export const revalidate = 600;
+export const revalidate = 600; // ISR: 10分钟
 
 export async function generateStaticParams() {
-  const popularPosts = getPopularPosts();
+  const popularPosts = await getPopularPosts();
   return popularPosts.map((post) => ({
     slug: post.slug,
   }));
 }
 
-// 动态生成元数据 - SEO优化
 export async function generateMetadata({ params }: BlogPostProps) {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const post = await getBlogPost(slug);
 
   if (!post) {
     return {
@@ -33,34 +32,15 @@ export async function generateMetadata({ params }: BlogPostProps) {
     title: `${post.title} | Web3技术博客`,
     description: post.excerpt,
     keywords: post.tags.join(", "),
-    openGraph: {
-      title: post.title,
-      description: post.excerpt,
-      type: "article",
-      publishedTime: post.publishedAt,
-      authors: [post.author],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: post.title,
-      description: post.excerpt,
-    },
   };
 }
 
 export default async function BlogPost({ params }: BlogPostProps) {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const post = await getBlogPost(slug);
 
   if (!post) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-red-600">文章未找到</h1>
-        <Link href="/blog" className="text-blue-500 mt-4 inline-block">
-          返回博客列表
-        </Link>
-      </div>
-    );
+    notFound();
   }
 
   return (
@@ -77,16 +57,13 @@ export default async function BlogPost({ params }: BlogPostProps) {
           </time>
         </div>
 
-        {/* 性能指标展示 */}
+        {/* 异步加载标识 */}
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
-            🚀 SSR渲染
+            🚀 异步SSR渲染
           </span>
           <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-            ⚡ 增量静态再生
-          </span>
-          <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
-            🔍 SEO优化
+            ⏱️ 模拟网络延迟
           </span>
         </div>
       </header>
@@ -102,18 +79,6 @@ export default async function BlogPost({ params }: BlogPostProps) {
             </p>
           ))}
         </div>
-      </div>
-
-      {/* 标签区域 */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {post.tags.map((tag) => (
-          <span
-            key={tag}
-            className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
-          >
-            #{tag}
-          </span>
-        ))}
       </div>
 
       <footer className="border-t pt-6">
