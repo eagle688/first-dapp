@@ -21,6 +21,7 @@ interface EIP1193Provider {
     listener: (accounts: string[]) => void
   ): void;
   on(eventName: string, listener: (...args: unknown[]) => void): void; // 兼容其他事件
+  providers?: EIP1193Provider[]; // 多钱包共存时的Provider列表
 }
 
 declare global {

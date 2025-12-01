@@ -1,5 +1,5 @@
 // hooks/useCachedBalance.ts
-import { useBalance, useAccount } from "wagmi";
+import { useBalance, useConnection } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -7,12 +7,12 @@ import { useQueryClient } from "@tanstack/react-query";
  * 优化性能，减少不必要的 RPC 调用
  */
 export function useCachedBalance(tokenAddress?: `0x${string}`) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected } = useConnection();
   const queryClient = useQueryClient();
 
   const balanceQuery = useBalance({
     address,
-    token: tokenAddress,
+    token: tokenAddress as `0x${string}` | undefined,
     query: {
       enabled: !!address && isConnected,
       // 缓存配置
@@ -34,6 +34,7 @@ export function useCachedBalance(tokenAddress?: `0x${string}`) {
   /**
    * 预取指定地址的代币余额并缓存，提升后续查询性能
    * 仅在钱包已连接且地址有效时执行
+   * 常见使用场景：在用户切换页面、打开弹窗等操作前调用，提前加载可能需要的数据。
    */
   const prefetchBalance = async () => {
     if (!address || !isConnected) return;

@@ -3,7 +3,7 @@ import { TransactionListProps } from "./types";
 import { EmptyState } from "./EmptyState";
 import { Transaction } from "./types";
 import { LoadingSkeleton } from "./LoadingSkeleton";
-import { formatAddress } from "@/utils/format";
+import { formatAddress } from "@/utils/formatAddress";
 
 export default function TransactionList({
   transactions,

@@ -1,298 +1,85 @@
-// hooks/useCachedMultiTokenBalances.ts
-import { useState, useCallback } from "react";
-import { useConnection, usePublicClient, useChainId } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { isAddress, formatUnits } from "viem";
-import { TokenInfo } from "./useMultiTokenBalances";
-
-//   ERC20 签名
-const ERC20_SIGNATURES: { [key: string]: `0x${string}` } = {
-  balanceOf: "0x70a08231",
-  name: "0x06fdde03",
-  symbol: "0x95d89b41",
-  decimals: "0x313ce567",
-};
+import { usePublicClient, useChainId } from "wagmi";
+import { formatUnits } from "viem";
+import {
+  TokenInfo,
+  getDefaultTokensByChainId,
+  fetchErc20BalanceWithMeta,
+} from "@/lib/erc20";
+import { useCustomTokens } from "@/hooks/useCustomTokens";
+import { useConnection } from "wagmi";
 
 /**
- * 带缓存的多代币余额查询 Hook
- * 使用 React Query 管理缓存和状态
+ * 缓存版多代币余额查询 Hook（React Query 缓存优化）
+ * @returns 代币列表 + 加载状态 + 刷新方法 + 添加自定义代币方法
  */
 export function useCachedMultiTokenBalances() {
-  const { address } = useConnection();
-  const chainId = useChainId();
+  const { address, isConnected } = useConnection();
   const publicClient = usePublicClient();
+  const chainId = useChainId();
   const queryClient = useQueryClient();
-  const [customTokens, setCustomTokens] = useState<TokenInfo[]>([]);
+  const { customTokens, addCustomToken } = useCustomTokens(); // 复用公共 Hook
 
-  // 1. 获取默认代币列表（复用您现有的逻辑）
-  const getDefaultTokens = useCallback(
-    (currentChainId?: number): TokenInfo[] => {
-      const baseTokens: TokenInfo[] = [];
+  // 获取默认代币列表（根据链ID）
+  const defaultTokens = getDefaultTokensByChainId(chainId);
 
-      // 这里可以添加原生币，但我们会用单独的 useBalance
-      if (currentChainId === 1) {
-        baseTokens.push(
-          {
-            address:
-              "0xdAC17F958D2ee523a2206206994597C13D831ec7" as `0x${string}`,
-            name: "Tether USD",
-            symbol: "USDT",
-            decimals: 6,
-          },
-          {
-            address:
-              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as `0x${string}`,
-            name: "USD Coin",
-            symbol: "USDC",
-            decimals: 6,
-          }
-        );
-      } else if (currentChainId === 137) {
-        baseTokens.push(
-          {
-            address:
-              "0xc2132D05D31c914a87C6611C10748AEb04B58e8F" as `0x${string}`,
-            name: "Tether USD",
-            symbol: "USDT",
-            decimals: 6,
-          },
-          {
-            address:
-              "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as `0x${string}`,
-            name: "USD Coin",
-            symbol: "USDC",
-            decimals: 6,
-          }
-        );
-      }
-
-      return baseTokens;
-    },
-    []
+  // 合并默认代币 + 自定义代币（去重）
+  const allTokens = [...defaultTokens, ...customTokens].filter(
+    (token, index, self) =>
+      self.findIndex((t) => t.address === token.address) === index
   );
 
-  // 2. 单个代币余额查询函数（带缓存）
-  const fetchTokenBalance = async (token: TokenInfo): Promise<TokenInfo> => {
-    if (!address || !publicClient) {
-      throw new Error("Missing address or public client");
-    }
-
-    // 如果是自定义代币且已有余额信息，直接返回
-    if (token.isCustom && token.balance !== undefined) {
-      return token;
-    }
-
-    try {
-      // 查询 balanceOf
-      const balanceHex = await publicClient.request({
-        method: "eth_call",
-        params: [
-          {
-            to: token.address,
-            data: `${ERC20_SIGNATURES.balanceOf}${address
-              .slice(2)
-              .padStart(64, "0")}`,
-          },
-          "latest",
-        ],
-      });
-
-      const balance = BigInt(balanceHex as string);
-
-      // 对于预设代币，使用已有信息；对于自定义代币，查询详细信息
-      let name = token.name;
-      let symbol = token.symbol;
-      let decimals = token.decimals;
-
-      if (token.isCustom || !token.name || token.name === "Unknown Token") {
-        // 并行查询代币信息
-        const [nameHex, symbolHex, decimalsHex] = await Promise.all([
-          publicClient.request({
-            method: "eth_call",
-            params: [
-              { to: token.address, data: ERC20_SIGNATURES.name },
-              "latest",
-            ],
-          }),
-          publicClient.request({
-            method: "eth_call",
-            params: [
-              { to: token.address, data: ERC20_SIGNATURES.symbol },
-              "latest",
-            ],
-          }),
-          publicClient.request({
-            method: "eth_call",
-            params: [
-              { to: token.address, data: ERC20_SIGNATURES.decimals },
-              "latest",
-            ],
-          }),
-        ]);
-
-        name =
-          nameHex !== "0x"
-            ? Buffer.from((nameHex as string).slice(130), "hex")
-                .toString("utf8")
-                .trim()
-            : "Unknown Token";
-
-        symbol =
-          symbolHex !== "0x"
-            ? Buffer.from((symbolHex as string).slice(130), "hex")
-                .toString("utf8")
-                .trim()
-            : "UNKNOWN";
-
-        decimals =
-          decimalsHex !== "0x" ? parseInt(decimalsHex as string, 16) : 18;
-      }
-
-      const balanceFormatted = formatUnits(balance, decimals);
-
-      return {
-        ...token,
-        name,
-        symbol,
-        decimals,
-        balance,
-        balanceFormatted,
-      };
-    } catch (error) {
-      console.error(`Fetch token ${token.address} failed:`, error);
-      return { ...token, balance: 0n, balanceFormatted: "0" };
-    }
-  };
-
-  // 3. 所有代币余额查询（使用 React Query 缓存）
+  // React Query 缓存查询所有代币余额
   const {
     data: tokens = [],
     isLoading,
-    isError,
-    refetch: refreshBalances,
+    error,
+    refetch,
   } = useQuery({
-    queryKey: ["multiTokenBalances", address, chainId, customTokens],
+    queryKey: ["multi-token-balances", chainId, address], // 缓存键（链ID+地址确保唯一性）
     queryFn: async () => {
-      if (!address || !publicClient || !chainId) {
-        return [];
-      }
+      if (!publicClient || !address) throw new Error("未连接钱包或网络异常");
 
-      const defaultTokens = getDefaultTokens(chainId);
-      const allTokens = [...defaultTokens, ...customTokens];
-
-      // 并行查询所有代币余额
-      const tokenPromises = allTokens.map((token) => fetchTokenBalance(token));
-      const results = await Promise.all(tokenPromises);
-
-      return results;
+      // 批量查询所有代币余额（与非缓存版逻辑一致，复用公共工具）
+      return Promise.all(
+        allTokens.map(async (token) => {
+          // 原生币（ETH）单独处理
+          if (token.address === "0x0000000000000000000000000000000000000000") {
+            const rawBalance = await publicClient.getBalance({ address });
+            return {
+              ...token,
+              rawBalance,
+              balance: formatUnits(rawBalance, token.decimals),
+            };
+          }
+          // ERC20 代币（复用公共工具函数）
+          return fetchErc20BalanceWithMeta(
+            publicClient,
+            address,
+            token.address
+          );
+        })
+      );
     },
-    enabled: !!address && !!publicClient && !!chainId,
-    staleTime: 30 * 1000, // 30秒缓存
-    gcTime: 5 * 60 * 1000, // 5分钟垃圾回收
-    refetchOnWindowFocus: false,
+    enabled: isConnected && !!address, // 仅连接钱包后触发查询
+    staleTime: 45 * 1000, // 45秒新鲜期（避免频繁请求）
+    gcTime: 10 * 60 * 1000, // 10分钟缓存保留期
+    refetchOnWindowFocus: true, // 窗口聚焦时刷新（适配Web3实时性需求）
   });
 
-  // 4. 添加自定义代币
-  const addCustomToken = async (tokenAddress: string) => {
-    if (!isAddress(tokenAddress)) throw new Error("Invalid address");
-    if (!publicClient || !chainId) throw new Error("PublicClient not ready");
-
-    // 检查是否已存在
-    if (
-      tokens.some(
-        (t) => t.address.toLowerCase() === tokenAddress.toLowerCase()
-      ) ||
-      customTokens.some(
-        (t) => t.address.toLowerCase() === tokenAddress.toLowerCase()
-      )
-    ) {
-      throw new Error("Token already exists");
-    }
-
-    try {
-      // 查询代币基本信息
-      const [name, symbol, decimals] = await Promise.all([
-        publicClient
-          .request({
-            method: "eth_call",
-            params: [
-              { to: tokenAddress, data: ERC20_SIGNATURES.name },
-              "latest",
-            ],
-          })
-          .then((hex: string) =>
-            Buffer.from(hex.slice(130), "hex").toString("utf8").trim()
-          ),
-        publicClient
-          .request({
-            method: "eth_call",
-            params: [
-              { to: tokenAddress, data: ERC20_SIGNATURES.symbol },
-              "latest",
-            ],
-          })
-          .then((hex: string) =>
-            Buffer.from(hex.slice(130), "hex").toString("utf8").trim()
-          ),
-        publicClient
-          .request({
-            method: "eth_call",
-            params: [
-              { to: tokenAddress, data: ERC20_SIGNATURES.decimals },
-              "latest",
-            ],
-          })
-          .then((hex: string) => parseInt(hex, 16) || 18),
-      ]);
-
-      const newToken: TokenInfo = {
-        address: tokenAddress as `0x${string}`,
-        name,
-        symbol,
-        decimals,
-        isCustom: true,
-      };
-
-      // 添加到自定义代币列表
-      setCustomTokens((prev) => [...prev, newToken]);
-
-      return newToken;
-    } catch (error) {
-      console.error("Add custom token failed:", error);
-      throw new Error("Invalid ERC20 contract");
-    }
-  };
-
-  // 5. 手动刷新单个代币（优化性能）
-  const refreshTokenBalance = async (tokenAddress: string) => {
-    const token = tokens.find((t) => t.address === tokenAddress);
-    if (!token) return;
-
-    try {
-      const updatedToken = await fetchTokenBalance(token);
-
-      // 更新查询缓存
-      queryClient.setQueryData(
-        ["multiTokenBalances", address, chainId, customTokens],
-        (old: TokenInfo[] | undefined) => {
-          if (!old) return [updatedToken];
-          return old.map((t) =>
-            t.address === tokenAddress ? updatedToken : t
-          );
-        }
-      );
-    } catch (error) {
-      console.error(`Refresh token ${tokenAddress} failed:`, error);
-    }
+  // 手动刷新余额（同时失效缓存）
+  const refreshMultiTokenBalances = () => {
+    queryClient.invalidateQueries({
+      queryKey: ["multi-token-balances", chainId, address],
+    });
+    return refetch();
   };
 
   return {
     tokens,
-    loading: isLoading,
-    isError,
+    isLoading,
+    error: error ? (error as Error).message : null,
+    refreshMultiTokenBalances,
     addCustomToken,
-    refreshBalances,
-    refreshTokenBalance,
-    customTokensCount: customTokens.length,
   };
 }
