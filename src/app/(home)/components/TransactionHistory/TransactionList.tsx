@@ -3,6 +3,7 @@ import { TransactionListProps } from "./types";
 import { EmptyState } from "./EmptyState";
 import { Transaction } from "./types";
 import { LoadingSkeleton } from "./LoadingSkeleton";
+import { formatAddress } from "@/utils/format";
 
 export default function TransactionList({
   transactions,
@@ -147,11 +148,6 @@ function TransactionItem({ transaction }: { transaction: Transaction }) {
       </div>
     </a>
   );
-}
-
-// 工具函数
-function formatAddress(address: string) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function TransactionIcon({
