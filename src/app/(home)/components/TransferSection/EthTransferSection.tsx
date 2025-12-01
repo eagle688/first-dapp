@@ -11,6 +11,7 @@ import { parseEther } from "viem";
 import GradientButton from "@/components/ui/GradientButton";
 import GasConfigPanel from "../GasConfigPannel";
 import TransactionStatus from "@/components/domains/transactionStatus"; // 使用新的状态组件
+import { formatBalance } from "@/utils/balanceFormatter";
 
 interface EthTransferSectionProps {
   address: `0x${string}` | undefined;
@@ -126,7 +127,11 @@ export default function EthTransferSection({
       {/* 显示当前余额（优化体验） */}
       {address && (
         <p className="text-sm text-gray-400 mb-2">
-          当前余额：{balanceData?.formatted || "加载中..."} ETH
+          {balanceData
+            ? `${formatBalance(balanceData, {
+                maximumFractionDigits: 6,
+              })} ${balanceData.symbol}`
+            : "加载中..."}
         </p>
       )}
       <div className="space-y-3">

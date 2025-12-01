@@ -8,6 +8,7 @@ import {
 } from "@/lib/erc20";
 import { useCustomTokens } from "@/hooks/useCustomTokens";
 import { useConnection } from "wagmi";
+import { TOKEN_BALANCE_QUERY_CONFIG } from "@/lib/queryConfig"; // 导入公共配置
 
 /**
  * 缓存版多代币余额查询 Hook（React Query 缓存优化）
@@ -62,9 +63,7 @@ export function useCachedMultiTokenBalances() {
       );
     },
     enabled: isConnected && !!address, // 仅连接钱包后触发查询
-    staleTime: 45 * 1000, // 45秒新鲜期（避免频繁请求）
-    gcTime: 10 * 60 * 1000, // 10分钟缓存保留期
-    refetchOnWindowFocus: true, // 窗口聚焦时刷新（适配Web3实时性需求）
+    ...TOKEN_BALANCE_QUERY_CONFIG, // 复用公共缓存配置
   });
 
   // 手动刷新余额（同时失效缓存）
