@@ -31,7 +31,10 @@ export function useCachedBalance(tokenAddress?: `0x${string}`) {
     return balanceQuery.refetch();
   };
 
-  // 预取余额数据（用于优化）
+  /**
+   * 预取指定地址的代币余额并缓存，提升后续查询性能
+   * 仅在钱包已连接且地址有效时执行
+   */
   const prefetchBalance = async () => {
     if (!address || !isConnected) return;
 

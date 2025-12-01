@@ -1,29 +1,37 @@
 // global.d.ts
-export {}
+export {};
+
+// 定义EIP-1193标准Provider接口
+interface EIP1193Provider {
+  chainId?: string;
+  selectedAddress?: string;
+  request<T = unknown>(args: {
+    method: string;
+    params?: unknown[];
+  }): Promise<T>;
+  on(eventName: string, listener: (...args: unknown[]) => void): void;
+  removeListener(
+    eventName: string,
+    listener: (...args: unknown[]) => void
+  ): void;
+
+  on(eventName: "chainChanged", listener: (chainId: string) => void): void;
+  on(
+    eventName: "accountsChanged",
+    listener: (accounts: string[]) => void
+  ): void;
+  on(eventName: string, listener: (...args: unknown[]) => void): void; // 兼容其他事件
+}
 
 declare global {
   interface Window {
-    okxwallet?: {
-      request: <T = unknown[]>(args: { 
-        method: string; 
-        params?: unknown[] 
-      }) => Promise<T>;
-      isOKExWallet?: boolean;
-      on?: (event: string, callback: (...args: unknown[]) => void) => void;
-      removeListener?: (event: string, callback: (...args: unknown[]) => void) => void;
+    okxwallet?: EIP1193Provider & { isOKExWallet: true };
+    ethereum?: EIP1193Provider & {
+      isMetaMask?: true;
+      isOKExWallet?: true;
     };
-    
-    ethereum?: {
-      request: <T = unknown>(args: { 
-        method: string; 
-        params?: unknown[] 
-      }) => Promise<T>;
-      isMetaMask?: boolean;
-      isOKExWallet?: boolean;
-      on?: (event: string, callback: (...args: unknown[]) => void) => void;
-      removeListener?: (event: string, callback: (...args: unknown[]) => void) => void;
-      chainId?: string;
-      selectedAddress?: string;
-    };
+    coinbaseWalletExtension?: EIP1193Provider & { isCoinbaseWallet: true };
+    trustwallet?: EIP1193Provider & { isTrust: true };
+    tokenpocket?: EIP1193Provider & { isTokenPocket: true };
   }
 }

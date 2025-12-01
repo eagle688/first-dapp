@@ -24,24 +24,21 @@ interface Web3InteractionProps {
   content: string;
 }
 
-export default function Web3Interaction({
-  postId,
-  author,
-}: Web3InteractionProps) {
+export default function Web3Interaction({ author }: Web3InteractionProps) {
   const { address, isConnected } = useConnection();
   const { data: balance } = useBalance({ address });
   const [donationAmount, setDonationAmount] = useState("0.001");
   const [isMinting, setIsMinting] = useState(false);
 
   // 模拟打赏功能
-  const { write: sendDonation } = useWriteContract({
-    address: "0x...", // 这里可以放一个测试网代币地址
+  const {} = useWriteContract({
+    address: "0x..." as `0x${string}`, // 这里可以放一个测试网代币地址
     abi: SIMPLE_TOKEN_ABI,
     functionName: "transfer",
     onSuccess: () => {
       alert("打赏成功！感谢支持作者！");
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       console.error("打赏失败:", error);
       alert("打赏失败，请重试");
     },
