@@ -58,20 +58,22 @@ export default function GasConfigPanel({
 
   const updateGasTier = useCallback(
     (tier: GasTier, baseFee?: bigint, priorityFee?: bigint) => {
-    if (!baseFee || !priorityFee) return;
+      if (!baseFee || !priorityFee) return;
 
-    const tierConfig = calculateTierPrice(tier, baseFee, priorityFee);
-    if (!tierConfig) return;
+      const tierConfig = calculateTierPrice(tier, baseFee, priorityFee);
+      if (!tierConfig) return;
 
-    const gasLimit = customGasLimit ? BigInt(customGasLimit) : defaultGasLimit;
+      const gasLimit = customGasLimit
+        ? BigInt(customGasLimit)
+        : defaultGasLimit;
 
-    onConfigChange({
-      ...tierConfig,
-      gasLimit,
-    });
+      onConfigChange({
+        ...tierConfig,
+        gasLimit,
+      });
 
-    setSelectedTier(tier);
-    setCustomGasPrice("");
+      setSelectedTier(tier);
+      setCustomGasPrice("");
     },
     [customGasLimit, defaultGasLimit, onConfigChange]
   );
@@ -146,13 +148,17 @@ export default function GasConfigPanel({
     const gasLimit = value ? BigInt(value) : defaultGasLimit;
     const config: GasConfig = { gasLimit };
 
-    if (customGasPrice) {
+    const shouldUseCustomGasPrice = !!customGasPrice;
+    const shouldUseTierPrice =
+      !customGasPrice && gasData.baseFee && gasData.priorityFee;
+
+    if (shouldUseCustomGasPrice) {
       try {
         config.gasPrice = parseGwei(customGasPrice);
       } catch (error) {
         console.error("Invalid gas price:", error);
       }
-    } else if (gasData.baseFee && gasData.priorityFee) {
+    } else if (shouldUseTierPrice) {
       const tierConfig = calculateTierPrice(
         selectedTier,
         gasData.baseFee,

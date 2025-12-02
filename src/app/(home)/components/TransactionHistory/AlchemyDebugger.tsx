@@ -1,10 +1,21 @@
 // 创建这个调试组件来测试不同的查询参数
 import { useState } from "react";
 
-  type DebugResult = {
+type DebugResult = {
   type: string;
   count: number;
   sample?: Record<string, unknown> | null;
+};
+
+type TransferParams = {
+  fromBlock: string;
+  toBlock: string;
+  category: string[];
+  withMetadata: boolean;
+  maxCount: string;
+  excludeZeroValue: boolean;
+  fromAddress?: string;
+  toAddress?: string;
 };
 
 export function AlchemyDebugger() {
@@ -16,7 +27,7 @@ export function AlchemyDebugger() {
     address: string,
     mode: "sent" | "received" | "all"
   ) => {
-    const params: object = {
+    const params: TransferParams = {
       fromBlock: "0x0",
       toBlock: "latest",
       category: ["external", "internal", "erc20"],
@@ -27,12 +38,12 @@ export function AlchemyDebugger() {
 
     // 根据模式设置不同的地址过滤
     if (mode === "sent") {
-      (params as Record<string, unknown>).fromAddress = address; // 只查发送
+      params.fromAddress = address; // 只查发送
     } else if (mode === "received") {
-      (params as Record<string, unknown>).toAddress = address; // 只查接收
+      params.toAddress = address; // 只查接收
     } else {
-      (params as Record<string, unknown>).fromAddress = address; // 查所有（发送和接收）
-      (params as Record<string, unknown>).toAddress = address;
+      params.fromAddress = address; // 查所有（发送和接收）
+      params.toAddress = address;
     }
 
     const response = await fetch(
@@ -138,7 +149,12 @@ export function AlchemyDebugger() {
               </div>
               {result.sample && (
                 <div className="text-xs text-gray-400 mt-1">
-                  示例: {(((result.sample as { hash?: string })?.hash) ?? "").slice(0, 10)}... (
+                  示例:{" "}
+                  {((result.sample as { hash?: string })?.hash ?? "").slice(
+                    0,
+                    10
+                  )}
+                  ... (
                   {(result.sample as { category?: string })?.category ?? ""})
                 </div>
               )}
