@@ -78,46 +78,60 @@ export default function GasConfigPanel({
     [customGasLimit, defaultGasLimit, onConfigChange]
   );
 
+  // 抽离到 useEffect 外面，接收依赖参数（避免闭包陷阱）
+  const fetchGasData = async (
+    publicClient: ReturnType<typeof usePublicClient> | undefined,
+    isMounted: boolean,
+    setGasData: React.Dispatch<
+      React.SetStateAction<{ baseFee?: bigint; priorityFee?: bigint }>
+    >,
+    updateGasTier: (
+      tier: string,
+      baseFee?: bigint,
+      priorityFee?: bigint
+    ) => void
+  ) => {
+    if (!publicClient || !isMounted) return;
+
+    try {
+      const [block, feeHistory] = await Promise.all([
+        publicClient.getBlock(),
+        publicClient.getFeeHistory({
+          blockCount: 1,
+          rewardPercentiles: [25, 50, 75],
+        }),
+      ]);
+
+      const baseFee = block.baseFeePerGas ?? undefined;
+      const priorityFee = feeHistory.reward?.[0]?.[1];
+
+      if (!isMounted) return;
+      setGasData({ baseFee, priorityFee });
+      updateGasTier("standard", baseFee, priorityFee);
+    } catch (error) {
+      console.error("Failed to fetch gas data:", error);
+    }
+  };
+
   // 获取实时 Gas 数据（优化版：30 秒刷新 + 严格卸载清理）
   useEffect(() => {
     let isMounted = true;
     let intervalId: NodeJS.Timeout | null = null;
 
-    const fetchGasData = async () => {
-      if (!publicClient || !isMounted) return;
-
-      try {
-        // 仅发起必要的 2 个请求，无额外参数
-        const [block, feeHistory] = await Promise.all([
-          publicClient.getBlock(),
-          publicClient.getFeeHistory({
-            blockCount: 1,
-            rewardPercentiles: [25, 50, 75],
-          }),
-        ]);
-
-        const baseFee = block.baseFeePerGas ?? undefined;
-        const priorityFee = feeHistory.reward?.[0]?.[1]; // 50th percentile
-
-        if (isMounted) {
-          setGasData({ baseFee, priorityFee });
-          updateGasTier("standard", baseFee, priorityFee);
-        }
-      } catch (error) {
-        console.error("Failed to fetch gas data:", error);
-      }
-    };
-
+    // 直接调用抽离的函数，传递必要依赖
     if (publicClient) {
-      fetchGasData();
-      intervalId = setInterval(fetchGasData, 30000);
+      fetchGasData(publicClient, isMounted, setGasData, updateGasTier);
+      intervalId = setInterval(
+        () => fetchGasData(publicClient, isMounted, setGasData, updateGasTier),
+        30000
+      );
     }
 
     return () => {
       isMounted = false;
-      if (intervalId) clearInterval(intervalId);
+      intervalId && clearInterval(intervalId);
     };
-  }, [publicClient, updateGasTier]);
+  }, [publicClient, setGasData, updateGasTier]); // 依赖明确，避免闭包陷阱
 
   // 处理自定义 Gas 价格（不变）
   const handleCustomGasPriceChange = (value: string) => {
