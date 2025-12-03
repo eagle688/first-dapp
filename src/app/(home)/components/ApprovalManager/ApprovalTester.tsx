@@ -5,6 +5,9 @@ import { erc20Abi } from "viem";
 
 export function ApprovalTester() {
   const { writeContract, isPending } = useWriteContract();
+  // SwapRouter02	mainnet: 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45	  sepolia: 0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E
+  const swagRouter02AddressSepolia =
+    "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E";
 
   const createTestApproval = () => {
     writeContract({
@@ -12,7 +15,7 @@ export function ApprovalTester() {
       abi: erc20Abi,
       functionName: "approve",
       args: [
-        "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45", // Uniswap V3
+        swagRouter02AddressSepolia, // Uniswap V3
         BigInt(1000000000), // 1000 USDC (6位小数)
       ],
     });
